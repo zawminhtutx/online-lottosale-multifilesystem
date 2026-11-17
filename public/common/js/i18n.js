@@ -146,6 +146,7 @@ export const MY = {
   'Prize set': 'ဆုအဆ အစု',
   Balance: 'လက်ကျန်ငွေ',
   'Last login': 'နောက်ဆုံးဝင်ချိန်',
+  Created: 'ဖွင့်ထားချိန်',
   Agent: 'အေးဂျင့်',
   User: 'ကစားသူ',
   Time: 'အချိန်',

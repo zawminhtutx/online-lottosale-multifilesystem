@@ -80,6 +80,7 @@ export default async function users(main, { query, rerender }) {
     },
     { label: t('Balance'), align: 'right', render: (u) => balanceCell(u) },
     { label: t('Status'), render: (u) => badge(u.status) },
+    role === 'master' && role0 === 'admin' && { label: t('Created'), render: (u) => dateTime(u.created_at) },
     role === 'master' && role0 === 'admin' && { label: '', render: (u) => closeMasterButton(u, rerender) },
     { label: t('Last login'), render: (u) => dateTime(u.last_login_at) },
   ].filter(Boolean);
@@ -102,7 +103,7 @@ export default async function users(main, { query, rerender }) {
       }, newLabels[role])),
     tabs(roles.map((r) => [r, titles[r]]), role, (r) => (location.hash = `#/users?role=${r}`)),
     h('div', { class: 'toolbar' }, searchBox, parentFilter),
-    table(columns, rows, {
+    table(columns, role === 'master' && role0 === 'admin' ? [...rows].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''))) : rows, {
       empty: search ? t('No matches') : empties[role],
       onRowClick: (u) => (location.hash = `#/users/${u.id}`),
     }));

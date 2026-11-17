@@ -135,6 +135,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
               load: _load,
               builder: (ctx, all, reload) {
                 final rows = all.where((u) => search.isEmpty || '${u['username']} ${u['name']} ${u['master_name'] ?? ''} ${u['email'] ?? ''} ${u['phone'] ?? ''}'.toLowerCase().contains(search)).toList();
+                if (session.isAdmin && widget.role == 'master') {
+                  rows.sort((a, b) => '${b['created_at'] ?? ''}'.compareTo('${a['created_at'] ?? ''}'));
+                }
                 final total = rows.fold<int>(0, (a, u) => a + asInt(u['balance']));
                 if (rows.isEmpty) return const EmptyView('မရှိပါ', icon: Icons.person_off);
                 return ListView(
@@ -197,6 +200,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                               '${widget.role == 'agent' ? 'Master' : 'အထက်'}: ${u['parent_username']}',
                             if (widget.role == 'agent') 'Users ${u['child_count']}',
                             if (widget.role == 'master') 'အောက်အကောင့် ${u['child_count']}',
+                            if (session.isAdmin && widget.role == 'master') 'ဖွင့်ချိန် ${dateTime(u['created_at'])}',
                           ].whereType<Object>().join(' · '),
                           style: const TextStyle(fontSize: 12),
                         ),
@@ -797,6 +801,8 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                           ),
                           if ((u['email'] ?? '').toString().isNotEmpty) Text('${u['email']}', style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
                           if (u['address'] != null) Text('${u['address']}', style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
+                          if (session.isAdmin && isMaster)
+                            Text('ဖွင့်ချိန် ${dateTime(u['created_at'])}', style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
                         ],
                       ),
                     ),
