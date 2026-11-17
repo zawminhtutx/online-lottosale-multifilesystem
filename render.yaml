@@ -1,0 +1,27 @@
+# Render Blueprint for the OnlineLotto server (API + admin/agent web + online web).
+# Render → New → Blueprint → pick this repo. Fill the two secrets marked "sync: false"
+# (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN) in the dashboard when prompted.
+services:
+  - type: web
+    name: online-lottosale
+    runtime: node
+    plan: free
+    region: singapore # closest Render region to Myanmar
+    # `npm install` triggers the root postinstall, which installs online-web's deps
+    # (incl. devDeps like vite) and builds online-web/dist for the server to serve at /.
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true # redeploy on every push to the connected branch
+    envVars:
+      - key: TURSO_DATABASE_URL
+        sync: false # set in the Render dashboard (kept out of git)
+      - key: TURSO_AUTH_TOKEN
+        sync: false # set in the Render dashboard (kept out of git)
+      - key: JWT_SECRET
+        generateValue: true # Render generates a strong secret automatically
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      - key: CORS_ORIGIN
+        value: "*"
+      # PORT is provided by Render automatically; config.js already reads process.env.PORT.

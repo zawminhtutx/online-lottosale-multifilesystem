@@ -1,0 +1,103 @@
+<Window x:Class="OnlineLotto.Wpf.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Style="{StaticResource AppWindow}" Width="820" Height="780" MinWidth="640" MinHeight="520"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Window.Resources>
+        <Style x:Key="Section" TargetType="Border" BasedOn="{StaticResource PanelBorder}">
+            <Setter Property="Padding" Value="18,14"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+    </Window.Resources>
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="14,10">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource PrimaryButton}" MinWidth="120" Margin="0,0,10,0" Click="Save_Click" Content="Save"/>
+                    <Button Content="Close" Style="{StaticResource PlainButton}" MinWidth="110" IsCancel="True"/>
+                </StackPanel>
+                <TextBlock x:Name="MessageText" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16,14">
+                <Border x:Name="AutoTermsSection" Style="{StaticResource Section}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitle}" Text="⚙  Auto အပါတ်စဥ်"/>
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Text="ဖိုင်အသစ် ဆောက်ရင် ဒီစာရင်းက အပါတ်စဥ်တွေ အလိုအလျောက် ဆောက်ပါမည်။"/>
+                        <ListView x:Name="TemplateList" Height="160" FontSize="14" Margin="0,0,0,10">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="အမည်" Width="90" DisplayMemberBinding="{Binding Name}"/>
+                                    <GridViewColumn Header="Game" Width="60" DisplayMemberBinding="{Binding Game}"/>
+                                    <GridViewColumn Header="စျေး" Width="60" DisplayMemberBinding="{Binding UnitPrice}"/>
+                                    <GridViewColumn Header="ဖွင့်" Width="70" DisplayMemberBinding="{Binding Open}"/>
+                                    <GridViewColumn Header="ပိတ်" Width="70" DisplayMemberBinding="{Binding Close}"/>
+                                    <GridViewColumn Header="ထွက်" Width="70" DisplayMemberBinding="{Binding Draw}"/>
+                                    <GridViewColumn Header="Break" Width="60" DisplayMemberBinding="{Binding UnitBreak}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                        <WrapPanel Margin="0,0,0,8">
+                            <TextBox x:Name="TplName" Width="90" Margin="0,0,6,4" ToolTip="အမည် (AM)"/>
+                            <ComboBox x:Name="TplGame" Width="70" Margin="0,0,6,4">
+                                <ComboBoxItem Content="2D" IsSelected="True"/>
+                                <ComboBoxItem Content="3D"/>
+                            </ComboBox>
+                            <TextBox x:Name="TplPrice" Width="60" Margin="0,0,6,4" Text="1" ToolTip="ယူနစ်စျေး"/>
+                            <TextBox x:Name="TplOpen" Width="70" Margin="0,0,6,4" Text="09:30"/>
+                            <TextBox x:Name="TplClose" Width="70" Margin="0,0,6,4" Text="11:59"/>
+                            <TextBox x:Name="TplDraw" Width="70" Margin="0,0,6,4" Text="12:02"/>
+                            <TextBox x:Name="TplBreak" Width="50" Margin="0,0,6,4" Text="1" ToolTip="Break"/>
+                            <Button Style="{StaticResource PlainButton}" Padding="10,4" Margin="0,0,6,4" Click="AddTemplate_Click" Content="+ ထည့်"/>
+                            <Button Style="{StaticResource PlainButton}" Padding="10,4" Margin="0,0,0,4" Click="RemoveTemplate_Click" Content="ဖျက်"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Section}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitle}" Text="🖨  Printer  (ဒီစက်)"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Slip Printer" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="SlipPrinterBox" Grid.Column="1" IsEditable="True" FontSize="15" Padding="8,4" Margin="0,4"/>
+                            <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource PlainButton}" HorizontalAlignment="Left" Padding="12,5" Margin="0,4,0,8"
+                                    Click="SlipSettings_Click" Content="Slip Printer Settings"/>
+                            <TextBlock Grid.Row="2" Text="Report Printer" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="ReportPrinterBox" Grid.Row="2" Grid.Column="1" IsEditable="True" FontSize="15" Padding="8,4" Margin="0,4"/>
+                            <TextBlock Grid.Row="3" Text="Report စာရွက်" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,6">
+                                <RadioButton x:Name="PaperA4" Content="A4" GroupName="paper" Margin="0,0,24,0"/>
+                                <RadioButton x:Name="PaperLetter" Content="Letter" GroupName="paper"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Section}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitle}" Text="🔊  အသံ  (ဒီစက်)"/>
+                        <CheckBox x:Name="SoundsBox" Content="အသံ ဖွင့်ထားမည်" Margin="0,2"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

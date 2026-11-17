@@ -1,0 +1,745 @@
+<!--
+  Sale screen, three panels like the JS app's Sale page:
+    entry panel (left) · cart display panel (middle) · ledger list panel (right)
+  with the term bar on top and the status/message line at the bottom.
+-->
+<UserControl x:Class="OnlineLotto.Wpf.Views.SaleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+
+        <!-- Panel title strip -->
+        <Style x:Key="PanelHead" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1.5"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+
+        <!-- ကျံ (blue) / ကျွံ (red) text -->
+        <Style x:Key="KyunText" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Over}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource Bad}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+
+        <!-- Number / Unit entry: soft cream background while it has the cursor -->
+        <Style x:Key="EntryBox" TargetType="TextBox" BasedOn="{StaticResource NumberBox}">
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="Background" Value="{StaticResource EntryFocusBg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- L / R / U / Auto: white with blue text, solid blue when on (web style) -->
+        <Style x:Key="ModeToggle" TargetType="ToggleButton">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1.5"
+                                CornerRadius="4" Padding="0,3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Status bar pieces -->
+        <Style x:Key="StatusSep" TargetType="Rectangle">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Fill" Value="{StaticResource Line}"/>
+            <Setter Property="Margin" Value="10,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="StatusChip" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Background" Value="{StaticResource Panel}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="PreviewColor" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding PreviewOver}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource Bad}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Icon on/off button: blue when on -->
+        <Style x:Key="StatusToggle" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                CornerRadius="4" Padding="9,4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource GlassHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Ledger rows: a number over its break is shown in red (text only, Windows list look) -->
+        <Style x:Key="LedgerText" TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="over">
+                    <Setter Property="Foreground" Value="{StaticResource Bad}"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Responsive (SaleView.xaml.cs Fit): on a big monitor the whole screen is scaled up (UiScale);
+         on a small one the side panels narrow and the cart's columns share its width. -->
+    <Grid x:Name="Root" Margin="10">
+        <Grid.LayoutTransform>
+            <ScaleTransform x:Name="UiScale" ScaleX="1" ScaleY="1"/>
+        </Grid.LayoutTransform>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Term bar -->
+        <Border Style="{StaticResource PanelBorder}" Padding="14,8">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" FontFamily="{StaticResource MonoFont}" FontSize="12" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="live ✓"/>
+                            <Setter Property="Foreground" Value="{StaticResource Ok}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding LiveConnected}" Value="False">
+                                    <Setter Property="Text" Value="live ✗ ပြန်ချိတ်နေသည်"/>
+                                    <Setter Property="Foreground" Value="{StaticResource Bad}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <!-- Buy tab: a clear "အဝယ်" mark so it's never mistaken for Sale -->
+                <Border DockPanel.Dock="Left" Background="{StaticResource WarnBg}" BorderBrush="{StaticResource Warn}" BorderThickness="1.5"
+                        CornerRadius="4" Padding="12,3" Margin="0,0,14,0" VerticalAlignment="Center"
+                        Visibility="{Binding IsBuy, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="အဝယ် (Buy)" FontWeight="Bold" FontSize="15" Foreground="{StaticResource Warn}"/>
+                </Border>
+                <!-- The active term, shown only: it is picked on the Main Menu (the file session's term) -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="အပါတ်စဥ်" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding SelectedTerm.Description, FallbackValue=-, TargetNullValue=-}" FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource Accent}" VerticalAlignment="Center" MinWidth="120"
+                               ToolTip="Active term — Dashboard မှာ ပြောင်းပါ"/>
+                    <!-- Break: edit the selected term (break / unit price / name) -->
+                    <Button Style="{StaticResource PlainButton}" Margin="6,0,0,0" Padding="10,4" Cursor="Hand"
+                            ToolTip="Break ပြင်ရန် (ရွေးထားသော အပါတ်စဥ်)" Command="{Binding EditTermCommand}"
+                            Visibility="{Binding CanEditTerm, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE70F;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Break" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="EntryColumn" Width="300"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*" MinWidth="380"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition x:Name="LedgerColumn" Width="300"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== Entry panel ===== -->
+            <Border>
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource PanelBorder}">
+                        <Setter Property="Background" Value="{StaticResource OkBg}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsBuy}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource WarnBg}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <DockPanel>
+                    <!-- Totals, Save (checkout) and the Option menu stay pinned at the bottom -->
+                    <StackPanel DockPanel.Dock="Bottom" Margin="12,0,12,10">
+                        <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1.5" CornerRadius="4" Padding="10,4" Margin="0,0,0,8">
+                            <DockPanel>
+                                <!-- Unit total | amount after commission (ကော်နုတ်) -->
+                                <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                    <TextBlock Text="ကော်နုတ်" Style="{StaticResource Caption}" HorizontalAlignment="Right"/>
+                                    <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Right" Text="{Binding CartTotal}"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Unit" Style="{StaticResource Caption}"/>
+                                    <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="18" FontWeight="Bold" Text="{Binding CartUnits}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <DockPanel Margin="0,0,0,0">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource PlainButton}" Padding="12,8" Margin="6,0,0,0"
+                                    Command="{Binding HoldCommand}" ToolTip="လက်ရှိ cart ကို Hold (F10)">
+                                <TextBlock FontSize="16">Hold <Run Text="F10" FontFamily="{StaticResource MonoFont}" FontSize="12"/></TextBlock>
+                            </Button>
+                            <Button Style="{StaticResource SuccessButton}" Padding="18,8" Command="{Binding CheckoutCommand}">
+                                <TextBlock FontSize="17">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="✓ Save F4"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PrintOnCheckout}" Value="True">
+                                                    <Setter Property="Text" Value="✓ Save &amp; Print"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Button>
+                        </DockPanel>
+
+                        <!-- Option: opens the menu of sale switches and imports -->
+                        <Button x:Name="OptionButton" Style="{StaticResource PlainButton}" Margin="0,6,0,0" Padding="10,4" Click="OptionButton_Click">
+                            <TextBlock>⚙ Option ▾</TextBlock>
+                            <Button.ContextMenu>
+                                <ContextMenu x:Name="OptionMenu" FontSize="15"
+                                             DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                    <MenuItem InputGestureText="F8" IsCheckable="True" IsChecked="{Binding PrintOnCheckout}"><MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE749;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="ပရင်တာထုတ်" VerticalAlignment="Center"/></StackPanel></MenuItem.Header></MenuItem>
+                                    <MenuItem InputGestureText="F7" IsCheckable="True" IsChecked="{Binding ExtraSave}"
+                                              IsEnabled="{Binding CanExtraSave}"
+                                              Visibility="{Binding ShowBreakTools, Converter={StaticResource BoolToVis}}"><MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74E;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="အကျွံများသိမ်း" VerticalAlignment="Center"/></StackPanel></MenuItem.Header></MenuItem>
+                                    <MenuItem IsCheckable="True" IsChecked="{Binding SplitExceed}" Visibility="{Binding ShowBreakTools, Converter={StaticResource BoolToVis}}"><MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C6;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="အကျွံများခွဲထုတ်" VerticalAlignment="Center"/></StackPanel></MenuItem.Header></MenuItem>
+                                    <MenuItem IsCheckable="True" IsChecked="{Binding ShowOverBreakAlert}" Visibility="{Binding ShowBreakTools, Converter={StaticResource BoolToVis}}"><MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="အကျွံများပြ" VerticalAlignment="Center"/></StackPanel></MenuItem.Header></MenuItem>
+                                    <Separator/>
+                                    <MenuItem InputGestureText="F10" Command="{Binding HoldCommand}"><MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7C5;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="Hold" VerticalAlignment="Center"/></StackPanel></MenuItem.Header></MenuItem>
+                                    <MenuItem InputGestureText="F9" Command="{Binding ImportLedgerCommand}"><MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B5;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="Ledger Import" VerticalAlignment="Center"/></StackPanel></MenuItem.Header></MenuItem>
+                                    <MenuItem Command="{Binding PasteImportCommand}"><MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE77F;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="Paste Import" VerticalAlignment="Center"/></StackPanel></MenuItem.Header></MenuItem>
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                    </StackPanel>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="12,8,12,6">
+                            <TextBlock Style="{StaticResource Caption}">
+                                <Run Text="Customer"/>
+                                <Run Text="{Binding CustomerName, Mode=OneWay}" Foreground="{StaticResource Fg}" FontWeight="Bold"/>
+                            </TextBlock>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Type an ID (auto-completes) or pick from the list -->
+                                <ComboBox x:Name="CustomerBox" IsEditable="True" IsTextSearchEnabled="True" TextSearch.TextPath="Username"
+                                          ItemsSource="{Binding Customers}" SelectedItem="{Binding SelectedCustomer}"
+                                          IsEnabled="{Binding CanPickCustomer}"
+                                          FontFamily="{StaticResource MonoFont}" FontSize="17" FontWeight="SemiBold" Padding="8,4"
+                                          PreviewKeyDown="CustomerBox_PreviewKeyDown">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock FontSize="15" FontWeight="Bold" Text="{Binding Username}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Grid.Column="1" Content="＋" ToolTip="Customer အသစ် ထည့်ရန်" Style="{StaticResource PrimaryButton}"
+                                        Padding="12,2" FontSize="18" Margin="6,0,0,0" Command="{Binding AddCustomerCommand}"
+                                        Visibility="{Binding CanAddCustomer, Converter={StaticResource BoolToVis}}"/>
+                            </Grid>
+
+                            <!-- Entry modes, as in the web app: L sweep, R pattern, U fixed unit, Auto (F6) -->
+                            <UniformGrid Columns="4" Margin="0,0,0,6">
+                                <ToggleButton Content="L" Style="{StaticResource ModeToggle}" IsChecked="{Binding SequentialMode}"
+                                              ToolTip="L — 00, 01, 02, ... အစဥ်လိုက် (Unit ထဲမှာ ဆက်ရိုက်၊ Unit ဗလာ = ကျော်)"/>
+                                <ToggleButton Content="R" Style="{StaticResource ModeToggle}" IsChecked="{Binding RMode}"
+                                              ToolTip="R — ဂဏန်းသက်သက်သာ ရိုက်ရ၊ ပတ်လည် (R) အဖြစ် ထည့်မည်"/>
+                                <ToggleButton Content="U" Style="{StaticResource ModeToggle}" IsChecked="{Binding UMode}"
+                                              ToolTip="U — Unit မပြောင်း၊ Number မှာ Enter နှိပ်တာနဲ့ ထည့်မည်"/>
+                                <ToggleButton Content="Auto" Style="{StaticResource ModeToggle}" IsChecked="{Binding AutoMode}"
+                                              ToolTip="Auto (F6) — ဂဏန်း / pattern ပြည့်တာနဲ့ Unit ကို ကိုယ်တိုင် ခုန်မည်"/>
+                            </UniformGrid>
+
+                            <!-- Myanmar name of the pattern being typed (နှစ်လုံး / သုံးလုံး when empty) -->
+                            <Border Background="{StaticResource Accent}" CornerRadius="4" Padding="10,2" Margin="0,0,0,6">
+                                <TextBlock Text="{Binding NumberHint}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource OnAccent}"
+                                           HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MinHeight="22"/>
+                            </Border>
+
+                            <!-- The type being typed (one slip can mix types); 2D at start. Solid blue when this tab's type. -->
+                            <UniformGrid Columns="4" Margin="0,0,0,6">
+                                <ToggleButton Content="2D" Style="{StaticResource ModeToggle}" ToolTip="2D (Alt+2)"
+                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=2D}"
+                                              Command="{Binding PickTypeCommand}" CommandParameter="2D"/>
+                                <ToggleButton Content="3D" Style="{StaticResource ModeToggle}" ToolTip="3D (Alt+3)"
+                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=3D}"
+                                              Command="{Binding PickTypeCommand}" CommandParameter="3D"/>
+                                <ToggleButton Content="T" ToolTip="TOTO (Alt+T)" Style="{StaticResource ModeToggle}"
+                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=T}"
+                                              Command="{Binding PickTypeCommand}" CommandParameter="T"/>
+                                <ToggleButton Content="4D" Style="{StaticResource ModeToggle}" ToolTip="4D (Alt+4)"
+                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=4D}"
+                                              Command="{Binding PickTypeCommand}" CommandParameter="4D"/>
+                            </UniformGrid>
+
+                            <!-- Number and Unit side by side; the discount override right under Unit, 4D's Big / Small under Number -->
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="ဂဏန်း (Number)" Style="{StaticResource Caption}"/>
+                                    <TextBox x:Name="NumberBox" Text="{Binding NumberText, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource EntryBox}" FontSize="18" Padding="8,3" CharacterCasing="Upper" KeyDown="NumberBox_KeyDown"
+                                             TextAlignment="Center" PreviewTextInput="NumberBox_PreviewTextInput"
+                                             GotKeyboardFocus="EntryBox_GotKeyboardFocus" PreviewMouseLeftButtonDown="EntryBox_PreviewMouseLeftButtonDown"
+                                             InputMethod.IsInputMethodEnabled="False"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="ယူနစ် (Unit)" Style="{StaticResource Caption}"/>
+                                    <TextBox x:Name="UnitBox" Text="{Binding UnitText, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource EntryBox}" FontSize="18" Padding="8,3" KeyDown="UnitBox_KeyDown"
+                                             PreviewTextInput="UnitBox_PreviewTextInput" TextAlignment="Right"
+                                             GotKeyboardFocus="EntryBox_GotKeyboardFocus" PreviewMouseLeftButtonDown="EntryBox_PreviewMouseLeftButtonDown"
+                                             InputMethod.IsInputMethodEnabled="False"/>
+                                </StackPanel>
+                                <!-- 4D only: Big / Small, under Number (beside the discount) -->
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,4"
+                                            Visibility="{Binding IsFourD, Converter={StaticResource BoolToVis}}">
+                                    <RadioButton Content="Big" GroupName="bet" Margin="0,0,12,0" FontSize="15"
+                                                 IsChecked="{Binding BetMode, Converter={StaticResource EqualsTo}, ConverterParameter=B}"/>
+                                    <RadioButton Content="Small" GroupName="bet" FontSize="15"
+                                                 IsChecked="{Binding BetMode, Converter={StaticResource EqualsTo}, ConverterParameter=S}"/>
+                                </StackPanel>
+                                <!-- "လျှော့ %" beside its box (not above) so the panel needs no scrolling -->
+                                <DockPanel Grid.Row="1" Grid.Column="2" Margin="0,4,0,0">
+                                    <TextBlock DockPanel.Dock="Left" Text="လျှော့ %" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" ToolTip="Discount"/>
+                                    <TextBox x:Name="DiscountBox" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource NumberBox}" FontSize="16" Padding="8,2" KeyDown="UnitBox_KeyDown"
+                                             IsEnabled="{Binding CanDiscount}" InputMethod.IsInputMethodEnabled="False" TextAlignment="Center"
+                                             PreviewTextInput="DiscountBox_PreviewTextInput"/>
+                                </DockPanel>
+                            </Grid>
+
+                            <!-- No add button: Enter in Unit (or Discount) adds the line. -->
+
+                            <!-- Numbers a pattern expands to (ကျံ/ကျွံ itself is in the status bar) -->
+                            <TextBlock Text="{Binding PreviewNumbers}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontFamily="{StaticResource MonoFont}" FontSize="13"
+                                       Visibility="{Binding PreviewNumbers, Converter={StaticResource NullToCollapsed}}" Margin="0,0,0,6"/>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- ===== Cart display panel ===== -->
+            <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Bar}" CornerRadius="3,3,0,0" Padding="12,8">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding CartCount}" Foreground="{StaticResource OnBarDim}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding SlipBanner}" Foreground="{StaticResource OnBar}" FontFamily="{StaticResource MonoFont}" FontSize="16" FontWeight="Bold"/>
+                        </DockPanel>
+                    </Border>
+                    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding HoldTabs}" SelectedItem="{Binding SelectedHoldTab}"
+                             Visibility="{Binding HasHolds, Converter={StaticResource BoolToVis}}"
+                             BorderThickness="0,0,0,1" BorderBrush="{StaticResource Line}" Background="{StaticResource Panel}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             Padding="6,4">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,6,0"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Bd" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}"
+                                                    BorderThickness="1" CornerRadius="4" Padding="10,4">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource Accent}"/>
+                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <!-- Plain Windows ListView, same look as the Customers / Users lists -->
+                    <ListView x:Name="CartGrid" ItemsSource="{Binding CartRows}" KeyDown="CartGrid_KeyDown" SelectionMode="Extended"
+                              SelectedItem="{Binding SelectedCartRow}" AlternationCount="2"
+                              FontSize="15" BorderThickness="0" ContextMenuOpening="CartGrid_ContextMenuOpening"
+                              SelectionChanged="CartGrid_SelectionChanged">
+                        <ListView.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem x:Name="CartMenuDelete" Click="CartMenuDelete_Click" InputGestureText="Del">
+                                    <MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Bad}" Width="26" VerticalAlignment="Center"/><TextBlock Text="Delete" VerticalAlignment="Center"/></StackPanel></MenuItem.Header>
+                                </MenuItem>
+                                <MenuItem x:Name="CartMenuUngroup" Click="CartMenuUngroup_Click">
+                                    <MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE71B;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" Width="26" VerticalAlignment="Center"/><TextBlock Text="Ungroup" VerticalAlignment="Center"/></StackPanel></MenuItem.Header>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ListView.ContextMenu>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource GlassListItem}">
+                                <Setter Property="MinHeight" Value="36"/>
+                                <Setter Property="Padding" Value="0,3"/>
+                                <Style.Triggers>
+                                    <!-- a number line of an opened group -->
+                                    <DataTrigger Binding="{Binding IsChild}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+                                    </DataTrigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.View>
+                            <GridView>
+                                <!-- Headers line up with their cells: text left, amounts right (6px = the cell margin) -->
+                                <GridView.ColumnHeaderContainerStyle>
+                                    <Style TargetType="GridViewColumnHeader">
+                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                        <Setter Property="Padding" Value="6,0"/>
+                                    </Style>
+                                </GridView.ColumnHeaderContainerStyle>
+                                <GridViewColumn Header="အမျိုးအစား" Width="110" DisplayMemberBinding="{Binding Type}"/>
+                                <GridViewColumn Header="ဂဏန်း" Width="230">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel MaxWidth="215">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <!-- ▸ / ▾ : list every number of a pattern row -->
+                                                    <Button Focusable="False" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="2,0" Margin="0,0,4,0"
+                                                            ToolTip="ဂဏန်းအားလုံး ကြည့်ရန်" Foreground="{StaticResource Accent}"
+                                                            Visibility="{Binding HasMany, Converter={StaticResource BoolToVis}}"
+                                                            Command="{Binding DataContext.ToggleExpandCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding RowId}">
+                                                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="12">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="&#xE76C;"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Expanded}" Value="True">
+                                                                            <Setter Property="Text" Value="&#xE70D;"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Button>
+                                                    <TextBlock Text="{Binding Numbers}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <!-- a number of an opened group: indented under it -->
+                                                                    <DataTrigger Binding="{Binding IsChild}" Value="True">
+                                                                        <Setter Property="Margin" Value="24,0,0,0"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Width="90">
+                                    <GridViewColumnHeader Content="ယူနစ်" HorizontalContentAlignment="Right"/>
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Unit, StringFormat=N0}" TextAlignment="Right" MinWidth="70"/></DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="ကော်" Width="70" DisplayMemberBinding="{Binding Discount}"/>
+                                <GridViewColumn Width="100">
+                                    <GridViewColumnHeader Content="ကျံ/ကျွံ" HorizontalContentAlignment="Right"/>
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Status}" Style="{StaticResource KyunText}" TextAlignment="Right" MinWidth="80"/></DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="မှန်ချက်" Width="210">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <!-- 🔗 Ungroup: split a pattern row into single numbers -->
+                                                <Button Focusable="False" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="2,0" Margin="0,0,4,0"
+                                                        ToolTip="Ungroup (ဂဏန်းတစ်ခုချင်း ခွဲရန်)" Foreground="{StaticResource Accent}"
+                                                        Visibility="{Binding IsGroup, Converter={StaticResource BoolToVis}}"
+                                                        Command="{Binding DataContext.UngroupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding RowId}">
+                                                    <TextBlock Text="&#xE71B;" FontFamily="{StaticResource IconFont}" FontSize="14"/>
+                                                </Button>
+                                                <TextBlock Text="{Binding Detail}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Width="44">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="✕" ToolTip="ဖျက်ရန်" Focusable="False" Cursor="Hand" FontWeight="Bold"
+                                                    Visibility="{Binding CanRemove, Converter={StaticResource BoolToVis}}"
+                                                    Foreground="{StaticResource Bad}" Background="Transparent" BorderThickness="0" Padding="6,0"
+                                                    Command="{Binding DataContext.RemoveRowCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding RowId}"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </DockPanel>
+            </Border>
+
+            <!-- ===== Ledger list panel ===== -->
+            <Border Grid.Column="4" Style="{StaticResource PanelBorder}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource PanelHead}">
+                        <DockPanel>
+                            <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Types}" SelectedItem="{Binding LedgerType}"
+                                      DisplayMemberPath="Description" MinWidth="110" FontSize="14" Padding="6,3" Focusable="False"
+                                      ToolTip="ကြည့်မယ့် Type ရွေးပါ"/>
+                            <TextBlock FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Text="လယ်ဂျာ"/>
+                        </DockPanel>
+                    </Border>
+                    <ListView x:Name="LedgerList" ItemsSource="{Binding LedgerRows}" SelectedItem="{Binding SelectedLedgerRow}"
+                              FontSize="15" BorderThickness="0" IsTextSearchEnabled="False"
+                              PreviewTextInput="LedgerList_PreviewTextInput" PreviewKeyDown="LedgerList_PreviewKeyDown"
+                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListView.ItemContainerStyle>
+                            <!-- Taller rows; no BasedOn (there's no app-level ListViewItem style) -->
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="MinHeight" Value="34"/>
+                                <Setter Property="Padding" Value="0,3"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.View>
+                            <GridView x:Name="LedgerGrid">
+                                <GridViewColumn Width="34">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Ellipse x:Name="Ball" Width="12" Height="12" Fill="{StaticResource Line}"/>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding State}" Value="ok">
+                                                    <Setter TargetName="Ball" Property="Fill" Value="{StaticResource Ok}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding State}" Value="over">
+                                                    <Setter TargetName="Ball" Property="Fill" Value="{StaticResource Bad}"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Width="80">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Number}" Style="{StaticResource LedgerText}"/></DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                    <GridViewColumnHeader Content="Number ⇅" Cursor="Hand" Command="{Binding SortLedgerCommand}" CommandParameter="num"/>
+                                </GridViewColumn>
+                                <GridViewColumn Width="90">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Unit}" Style="{StaticResource LedgerText}" TextAlignment="Right" MinWidth="70"/></DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                    <GridViewColumnHeader Content="Unit ⇅" Cursor="Hand" Command="{Binding SortLedgerCommand}" CommandParameter="unit"/>
+                                </GridViewColumn>
+                                <GridViewColumn Width="80">
+                                    <GridViewColumnHeader Content="ကျွံ"/>
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Extra}" Style="{StaticResource LedgerText}" TextAlignment="Right" MinWidth="60"/></DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Status bar: customer · print, Extra Save, Send · ကျံ/ကျွံ of what's being typed | ledger totals -->
+        <Border Grid.Row="3" Margin="0,10,0,0" Style="{StaticResource PanelBorder}" Padding="10,5">
+            <StackPanel Orientation="Horizontal">
+                <!-- Customer: blue person; dealer: filled red person (Views/CustomerKind.cs) -->
+                <TextBlock FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" Margin="2,0,6,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="&#xE77B;"/>
+                            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CustomerIsDealer}" Value="True">
+                                    <Setter Property="Text" Value="&#xEA8C;"/>
+                                    <Setter Property="Foreground" Value="{StaticResource Bad}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding CustomerStatus}" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="120" MaxWidth="260" TextTrimming="CharacterEllipsis"/>
+                <Rectangle Style="{StaticResource StatusSep}"/>
+
+                <ToggleButton Style="{StaticResource StatusToggle}" IsChecked="{Binding PrintOnCheckout}" ToolTip="ပရင်တာထုတ် (F8)">
+                    <TextBlock Text="&#xE749;" FontFamily="{StaticResource IconFont}" FontSize="16"/>
+                </ToggleButton>
+                <ToggleButton Style="{StaticResource StatusToggle}" IsChecked="{Binding ExtraSave}" IsEnabled="{Binding CanExtraSave}"
+                              Visibility="{Binding ShowBreakTools, Converter={StaticResource BoolToVis}}"
+                              ToolTip="အကျွံများသိမ်း (F7)" Margin="6,0,0,0">
+                    <TextBlock Text="&#xE74E;" FontFamily="{StaticResource IconFont}" FontSize="16"/>
+                </ToggleButton>
+                <!-- Sale: Send — pick how each saved slip goes out (Viber / Telegram / SMS); blue while one is on -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsSale, Converter={StaticResource BoolToVis}}">
+                    <ToggleButton x:Name="SendButton" Style="{StaticResource StatusToggle}" IsChecked="{Binding IsSendOn, Mode=OneWay}"
+                                  PreviewMouseLeftButtonDown="SendButton_MouseDown" ToolTip="Save ပြီးရင် Slip ပို့ရန် (Viber / Telegram / SMS)" Margin="6,0,0,0">
+                        <TextBlock Text="&#xE724;" FontFamily="{StaticResource IconFont}" FontSize="16"/>
+                        <ToggleButton.ContextMenu>
+                            <ContextMenu x:Name="SendMenu" FontSize="15"
+                                         DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                <MenuItem IsCheckable="False" Command="{Binding PickSendChannelCommand}" CommandParameter="viber"
+                                          IsChecked="{Binding SendChannel, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=viber}">
+                                    <MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8BD;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="#7360F2" Width="26" VerticalAlignment="Center"/><TextBlock Text="Viber" VerticalAlignment="Center"/></StackPanel></MenuItem.Header>
+                                </MenuItem>
+                                <MenuItem IsCheckable="False" Command="{Binding PickSendChannelCommand}" CommandParameter="telegram"
+                                          IsChecked="{Binding SendChannel, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=telegram}">
+                                    <MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE724;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="#229ED9" Width="26" VerticalAlignment="Center"/><TextBlock Text="Telegram" VerticalAlignment="Center"/></StackPanel></MenuItem.Header>
+                                </MenuItem>
+                                <MenuItem IsCheckable="False" Command="{Binding PickSendChannelCommand}" CommandParameter="sms"
+                                          IsChecked="{Binding SendChannel, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=sms}">
+                                    <MenuItem.Header><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C3;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Ok}" Width="26" VerticalAlignment="Center"/><TextBlock Text="SMS" VerticalAlignment="Center"/></StackPanel></MenuItem.Header>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ToggleButton.ContextMenu>
+                    </ToggleButton>
+                </StackPanel>
+                <Rectangle Style="{StaticResource StatusSep}"/>
+
+                <!-- ကျံ / ကျွံ label and its units for the entry being typed -->
+                <Border Style="{StaticResource StatusChip}">
+                    <TextBlock Text="{Binding PreviewKind}" FontWeight="Bold" Style="{StaticResource PreviewColor}"/>
+                </Border>
+                <TextBox Text="{Binding PreviewUnits, Mode=OneWay}" IsReadOnly="True" Focusable="False" Width="90" Margin="6,0,0,0"
+                         Padding="6,2" FontWeight="Bold" HorizontalContentAlignment="Right" VerticalAlignment="Center"
+                         ToolTip="ရိုက်ထည့်နေသော ဂဏန်းအတွက် ကျံ / ကျွံ unit">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding PreviewOver}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource Bad}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                <Rectangle Style="{StaticResource StatusSep}"/>
+
+                <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="15" VerticalAlignment="Center">
+                    <Run Text="All Total: "/><Run Text="{Binding LedgerAll, Mode=OneWay}" FontWeight="Bold"/>
+                    <Run Text="  ·  Extra: "/><Run Text="{Binding LedgerExtra, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource Bad}"/>
+                    <Run Text="  ·  Total: "/><Run Text="{Binding LedgerNet, Mode=OneWay}" FontWeight="Bold"/>
+                    <Run Text=" ("/><Run Text="{Binding LedgerPct, Mode=OneWay}"/><Run Text=")"/>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- Message line: its space is always kept (Hidden, not Collapsed) so the panels and their
+             buttons never move when a message appears or clears. -->
+        <Border Grid.Row="4" Margin="0,8,0,0" CornerRadius="4" Padding="12,7" BorderThickness="1.5"
+                Visibility="{Binding Message, Converter={StaticResource NullToCollapsed}}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="{StaticResource OkBg}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource Ok}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding MessageIsError}" Value="True">
+                            <Setter Property="Background" Value="{StaticResource BadBg}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource Bad}"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="{Binding Message}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+        </Border>
+    </Grid>
+</UserControl>

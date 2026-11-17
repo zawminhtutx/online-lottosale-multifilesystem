@@ -1,0 +1,62 @@
+<Window x:Class="OnlineLotto.Wpf.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:OnlineLotto.Wpf.Views"
+        Title="Lotto Admin" Width="1280" Height="800" MinWidth="1100" MinHeight="680"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized" Style="{StaticResource AppWindow}">
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Bar}" Padding="12,5">
+            <DockPanel>
+                <TextBlock x:Name="ClockText" DockPanel.Dock="Right" Foreground="{StaticResource OnBar}" FontFamily="{StaticResource MonoFont}" FontSize="13"/>
+                <TextBlock x:Name="StatusText" Foreground="{StaticResource OnBar}" FontSize="13"/>
+            </DockPanel>
+        </Border>
+        <TabControl x:Name="Tabs" Style="{StaticResource TopTabControl}" SelectionChanged="Tabs_SelectionChanged">
+            <TabControl.Tag>
+                <StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource Pill}" BorderBrush="{StaticResource OnTabBarDim}">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="10" Height="10" Fill="{StaticResource Ok}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ServerText" Foreground="{StaticResource OnTabBar}" FontFamily="{StaticResource MonoFont}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Button x:Name="LogoutButton" Click="LogoutButton_Click" Template="{StaticResource BarLinkButton}" Cursor="Hand"
+                            Foreground="{StaticResource OnTabBar}" FontWeight="SemiBold">
+                        <TextBlock x:Name="UserText"/>
+                    </Button>
+                </StackPanel>
+            </TabControl.Tag>
+            <TabItem Style="{StaticResource TopTab}" Header="Dashboard">
+                <v:DashboardView x:Name="DashScreen"/>
+            </TabItem>
+            <TabItem x:Name="SaleTab" Style="{StaticResource TopTab}">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8A1;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0"/>
+                        <TextBlock Text="အရောင်း"/>
+                        <Border Style="{StaticResource KeyChip}"><TextBlock Text="F1" FontFamily="{StaticResource MonoFont}" FontSize="11"/></Border>
+                    </StackPanel>
+                </TabItem.Header>
+                <v:SaleView x:Name="SaleScreen"/>
+            </TabItem>
+            <TabItem x:Name="BuyTab" Style="{StaticResource TopTab}">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8C7;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0"/>
+                        <TextBlock Text="အဝယ်"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <v:SaleView x:Name="BuyScreen"/>
+            </TabItem>
+            <TabItem x:Name="ReportsTab" Style="{StaticResource TopTab}">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE9F9;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0"/>
+                        <TextBlock Text="စာရင်းများ"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <v:ReportsView x:Name="ReportsScreen"/>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

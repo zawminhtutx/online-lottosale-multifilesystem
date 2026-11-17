@@ -1,0 +1,42 @@
+<Window x:Class="OnlineLotto.Wpf.Views.WinNumbersWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ပေါက်ဂဏန်း" Style="{StaticResource AppWindow}" Width="820" Height="560"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Style="{StaticResource PanelBorder}" Margin="12,12,12,0" Padding="12,10">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="ပိတ်မည်" Style="{StaticResource PlainButton}" Padding="14,8" IsCancel="True" Click="Close_Click"/>
+                <TextBlock FontSize="20" FontWeight="Bold" VerticalAlignment="Center" Text="ပေါက်ဂဏန်း"/>
+            </DockPanel>
+        </Border>
+        <TextBlock DockPanel.Dock="Bottom" x:Name="HintText" Margin="16,8" Foreground="{StaticResource Muted}"
+                   Text="ပေါက်ဂဏန်း ရိုက်ထည့်ပြီး သိမ်းမည် နှိပ်ပါ (admin) — သိမ်းရင် အလျော်တွက်ပါမည်"/>
+        <ListView x:Name="List" Margin="12" FontSize="15">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="အပါတ်စဥ်" Width="220" DisplayMemberBinding="{Binding Description}"/>
+                    <GridViewColumn Header="Game" Width="70" DisplayMemberBinding="{Binding Game}"/>
+                    <GridViewColumn Header="Status" Width="90" DisplayMemberBinding="{Binding Status}"/>
+                    <GridViewColumn Header="ပေါက်ဂဏန်း" Width="140">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Number, UpdateSourceTrigger=PropertyChanged}" MinWidth="90"
+                                         IsEnabled="{Binding CanEdit}" Style="{StaticResource NumberBox}" FontSize="16" Padding="6,4"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="" Width="110">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="သိမ်းမည်" Style="{StaticResource PrimaryButton}" Padding="10,4"
+                                        Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}}"
+                                        Click="Save_Click" Tag="{Binding}"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</Window>

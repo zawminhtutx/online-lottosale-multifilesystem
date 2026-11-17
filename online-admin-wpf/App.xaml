@@ -1,0 +1,17 @@
+<Application x:Class="OnlineLotto.Wpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:OnlineLotto.Wpf"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <local:InverseBoolToVisConverter x:Key="InverseBoolToVis"/>
+            <local:NullToCollapsedConverter x:Key="NullToCollapsed"/>
+            <local:EqualsToConverter x:Key="EqualsTo"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,45 @@
+<Window x:Class="OnlineLotto.Wpf.Views.NewFolderDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ဖိုင်အသစ်" Style="{StaticResource AppWindow}" Background="{StaticResource Panel}"
+        Width="480" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Border BorderBrush="{StaticResource Accent}" BorderThickness="0,4,0,0">
+        <StackPanel Margin="26,20">
+            <TextBlock Style="{StaticResource Heading}" Margin="0,0,0,12" Text="ဖိုင်အသစ်"/>
+            <TextBlock Text="ဖိုင်အမည်" Style="{StaticResource Caption}"/>
+            <TextBox x:Name="NameBox" FontSize="17" MaxLength="60" Margin="0,0,0,14"/>
+
+            <StackPanel x:Name="AutoPanel">
+                <TextBlock Text="ရက်စွဲ (မှ – ထိ)" Style="{StaticResource Caption}"/>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="မှ" Foreground="{StaticResource Muted}" FontSize="13"/>
+                        <DatePicker x:Name="FromDate" FontSize="15" Padding="6,4"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="ထိ" Foreground="{StaticResource Muted}" FontSize="13"/>
+                        <DatePicker x:Name="ToDate" FontSize="15" Padding="6,4"/>
+                    </StackPanel>
+                </Grid>
+                <CheckBox x:Name="AutoBox" IsChecked="True" Margin="0,4,0,4" Checked="Auto_Changed" Unchecked="Auto_Changed">
+                    <TextBlock x:Name="AutoLabel" TextWrapping="Wrap"/>
+                </CheckBox>
+                <TextBlock x:Name="TemplateHint" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,8"/>
+            </StackPanel>
+
+            <Border x:Name="ErrorBox" Style="{StaticResource ErrorBox}" Visibility="Collapsed" Margin="0,0,0,8">
+                <TextBlock x:Name="ErrorText" Foreground="{StaticResource Bad}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            </Border>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button Content="မလုပ်တော့ပါ" Style="{StaticResource PlainButton}" IsCancel="True" MinWidth="120" Margin="0,0,10,0"/>
+                <Button Content="ဖန်တီးမည်" Style="{StaticResource PrimaryButton}" IsDefault="True" MinWidth="120" Click="Ok_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

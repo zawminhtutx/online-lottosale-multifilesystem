@@ -1,0 +1,143 @@
+/* Online pages (/online). Layout, tiles, term banner and the sale panels come from styles.css
+   (shared with the POS app); this file only adds what the online pages need on top. */
+
+.ol-muted { color: var(--muted); font-size: 12.5px; }
+.ol-error { background: #fee2e2; color: var(--danger); border-radius: 9px; padding: 9px 12px; font-size: 13px; margin-top: 10px; }
+.ol-empty { text-align: center; color: var(--muted); padding: 28px 10px; border: 1.5px dashed var(--border); border-radius: 10px; }
+.ol-neg { color: var(--danger); }
+.ol-pos { color: #059669; }
+.ol-countdown { color: #d97706; font-weight: 600; }
+
+/* ---------- topbar / menu ---------- */
+.ol-balance-chip { font-variant-numeric: tabular-nums; }
+.ol-menu-tiles { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 640px) { .ol-menu-tiles { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------- active terms ---------- */
+.ol-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.ol-term-btn { justify-content: flex-start; text-align: left; gap: 12px; padding: 12px 14px; }
+.ol-term-btn .type-circle { font-size: 11px; }
+
+/* ---------- sale page ---------- */
+.ol-status .ol-neg { color: #fecaca; }
+.sale-status-bar-compact.ol-status { background: #0f172a; }
+/* styles.css loads after this file, so these overrides are scoped under .ol-sale to win. */
+@media (max-width: 900px) {
+  /* Stack the three panels on narrow screens instead of scrolling sideways. */
+  .content-fit .ol-sale.sale-page, .content-fit .ol-sale .sale-page-body { height: auto; }
+  .content-fit .ol-sale .sale-panels { flex-wrap: wrap; overflow-x: visible; }
+  .ol-sale .sale-entry-panel { width: 100%; }
+  .ol-sale .sale-display-panel { min-width: 0; width: 100%; flex-basis: 100%; }
+  .ol-sale .sale-display-panel .sale-table-scroll { max-height: 320px; }
+  .ol-sale .sale-status-bar { flex-wrap: wrap; }
+}
+@media (max-width: 640px) {
+  .shell .ol-topbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .shell .ol-topbar > span { flex-wrap: wrap; gap: 8px !important; }
+  .shell .content { padding: 12px; }
+}
+
+/* ---------- slips + wallet ---------- */
+.ol-card { padding: 18px 20px; max-width: 1000px; margin: 0 auto; }
+.ol-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: -4px 0 14px; }
+.ol-tabs button { border: 0; background: none; padding: 10px 16px; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.ol-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
+.ol-slips-sum { display: grid; gap: 6px; padding-top: 10px; border-top: 1px dashed rgba(0,0,0,.2); font-variant-numeric: tabular-nums; }
+.ol-slips-sum > div { display: flex; justify-content: space-between; gap: 10px; }
+.ol-slips-sum span { color: #57534e; font-weight: 600; }
+.ol-slip-image { display: flex; justify-content: center; margin-bottom: 12px; padding: 10px; background: var(--bg); border-radius: 10px; max-height: 55vh; overflow: auto; }
+.ol-slip-image img { width: 100%; max-width: 320px; height: auto; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.15); align-self: flex-start; }
+.sale-num-chip.ol-win-chip { background: #059669; color: #fff; }
+.ol-wallet { grid-column: 1 / -1; }
+.ol-slip-head { display: grid; gap: 2px; margin-bottom: 12px; }
+.ol-results { display: flex; gap: 10px; margin-bottom: 12px; }
+.ol-results > div { flex: 1; display: grid; justify-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
+.ol-results span { font-size: 12px; color: var(--muted); }
+.ol-results b { font-size: 26px; letter-spacing: .15em; }
+.ol-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ol-table th, .ol-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.ol-table th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--bg); }
+.ol-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ol-win-row td { background: #d1fae5; }
+:root[data-theme="dark"] .ol-win-row td { background: rgba(5, 150, 105, .2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ol-win-row td { background: rgba(5, 150, 105, .2); } }
+.ol-totals { display: grid; gap: 4px; margin: 14px 0 0; }
+.ol-total { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ol-total-main { font-size: 18px; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+
+/* ---------- profile ---------- */
+.ol-user-chip { border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; }
+.ol-user-chip:hover { filter: brightness(0.95); }
+.ol-profile { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; max-width: 1000px; margin: 0 auto; }
+.ol-profile > .ol-card { margin: 0; max-width: none; }
+@media (max-width: 760px) { .ol-profile { grid-template-columns: 1fr; } }
+.ol-profile-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.ol-avatar {
+  width: 52px; height: 52px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-size: 22px; font-weight: 800;
+  background: var(--primary-light); color: var(--primary);
+}
+.ol-profile-list { display: grid; grid-template-columns: auto 1fr; margin: 0; }
+.ol-profile-list dt, .ol-profile-list dd { padding: 9px 0; border-bottom: 1px solid var(--border); margin: 0; }
+.ol-profile-list dt { color: var(--muted); font-size: 13px; padding-right: 18px; }
+.ol-profile-list dd { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+
+/* ---------- win numbers / reports ---------- */
+.ol-page { max-width: 1100px; margin: 0 auto; }
+.ol-page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.ol-page-head h2 { margin: 0; font-size: 18px; }
+.ol-tabs-inline { margin: 0; border-bottom: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+.ol-tabs-inline button { border-bottom: 0; margin: 0; padding: 6px 16px; border-radius: 8px; }
+.ol-tabs-inline button.active { background: var(--primary-light); }
+
+.ol-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ol-result-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.ol-result-card.won { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22, 163, 74, .25); }
+.ol-result-card header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.ol-result-card .type-circle { font-size: 11px; }
+.ol-result-term { font-weight: 700; }
+.ol-result-digits { display: flex; gap: 10px; }
+.ol-result-digits > div { flex: 1; display: grid; justify-items: center; padding: 10px 6px; border-radius: 12px; background: var(--primary-light); }
+.ol-result-digits span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.ol-result-digits b { font-size: 34px; letter-spacing: .18em; color: var(--primary-dark); font-variant-numeric: tabular-nums; }
+.ol-result-twod { display: grid; gap: 6px; }
+.ol-result-twod > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.ol-result-card footer { display: flex; justify-content: flex-end; align-items: center; margin-top: auto; }
+.ol-won-link { color: #16a34a; font-weight: 600; text-decoration: none; }
+
+.ol-report-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.ol-stat { display: grid; gap: 4px; padding: 14px 16px; margin: 0; }
+.ol-stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.ol-table tfoot td { border-top: 2px solid var(--border); background: var(--bg); }
+.ol-term-upcoming:disabled { opacity: .6; cursor: not-allowed; }
+.ol-opens-in { color: var(--muted); }
+
+/* Sale page: scrolling hot numbers under the header */
+.hot-marquee { display: flex; align-items: center; margin: -2px 0 8px; border-radius: 9px;
+  background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; font-weight: 700; font-size: 13.5px; }
+.hot-marquee-label { flex: none; padding: 6px 10px; background: #ffedd5; border-right: 1px solid #fdba74; border-radius: 8px 0 0 8px; white-space: nowrap; }
+.hot-marquee-view { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; padding: 6px 0; }
+.hot-marquee-btn { flex: none; border: none; border-left: 1px solid #fdba74; background: #ffedd5; cursor: pointer;
+  font-size: 16px; padding: 4px 12px; align-self: stretch; border-radius: 0 8px 8px 0; }
+.hot-marquee-btn:hover { background: #fed7aa; }
+.sale-num-chip.hot-chip { background: #ea580c; color: #fff; }
+.hot-marquee-track { display: inline-flex; gap: 80px; padding-left: 100%; animation: hot-marquee linear infinite; }
+.hot-marquee-view:hover .hot-marquee-track { animation-play-state: paused; }
+@keyframes hot-marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .hot-marquee-track { animation: none; padding-left: 12px; } }
+.hot-textbox { width: 100%; resize: vertical; font-family: 'Poppins', 'Courier New', monospace; font-size: 16px; line-height: 1.6; }
+.held-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.held-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; }
+.held-info { flex: 1; min-width: 0; font-size: 13px; }
+.hold-list-btn { border-color: #f59e0b; color: #b45309; }
+.ol-adjust { margin: 8px 0 10px; padding: 8px 10px; border-radius: 9px; background: #fff7ed; border: 1px solid #fdba74; font-size: 13px; }
+.ol-adjust-title { font-weight: 700; color: #c2410c; margin-bottom: 4px; }
+.ol-adjust-row { padding: 2px 0; }
+.report-preview { max-height: 60vh; overflow-y: auto; background: #e5e7eb; padding: 12px; border-radius: 9px; display: flex; justify-content: center; }
+.report-preview img { width: 100%; max-width: 320px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+/* Slips page: the slip list and its numbers each scroll inside their own box (scroll bar always shown),
+   headings stay in place (table.sale-table th is sticky). Overrides the full-height layout max-height: none. */
+.slips-table-panel .sale-table-scroll,
+.content-fit .slips-table-panel .sale-table-scroll { flex: none; max-height: 38vh; overflow-y: scroll; }
+.slip-delete-btn { color: #dc2626; }
+.slip-delete-btn:disabled { opacity: .35; }

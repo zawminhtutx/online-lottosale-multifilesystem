@@ -1,0 +1,80 @@
+<Window x:Class="OnlineLotto.Wpf.Views.TermsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="အပါတ်စဥ်" Style="{StaticResource AppWindow}" Width="1020" Height="580"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style x:Key="BarButton" TargetType="Button" BasedOn="{StaticResource PlainButton}">
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="MinWidth" Value="92"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+    </Window.Resources>
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="14,10">
+            <DockPanel>
+                <TextBlock Text="{Binding Message}" DockPanel.Dock="Left" VerticalAlignment="Center" Foreground="{StaticResource Bad}"
+                           FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="360"
+                           Visibility="{Binding Message, Converter={StaticResource NullToCollapsed}}"/>
+                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource BarButton}" Click="New_Click"
+                            Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="20" HorizontalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                            <TextBlock Text="New" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BarButton}" Click="Edit_Click"
+                            Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Text="&#xE70F;" FontFamily="{StaticResource IconFont}" FontSize="20" HorizontalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                            <TextBlock Text="Edit" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BarButton}" Click="Delete_Click"
+                            Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="20" HorizontalAlignment="Center" Foreground="{StaticResource Bad}"/>
+                            <TextBlock Text="Delete" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BarButton}" IsCancel="True" Click="Exit_Click">
+                        <StackPanel>
+                            <TextBlock Text="&#xE89F;" FontFamily="{StaticResource IconFont}" FontSize="20" HorizontalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                            <TextBlock Text="Exit" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <Border DockPanel.Dock="Top" Padding="14,10,14,6" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <TextBlock FontSize="20" FontWeight="Bold" Text="အပါတ်စဥ်"/>
+        </Border>
+        <ListView ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected}" Margin="12" FontSize="15"
+                  MouseDoubleClick="List_MouseDoubleClick">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="အပါတ်စဥ်" Width="240" DisplayMemberBinding="{Binding Description}"/>
+                    <GridViewColumn Header="အမျိုးအစား" Width="90" DisplayMemberBinding="{Binding Game}"/>
+                    <GridViewColumn Header="Status" Width="100" DisplayMemberBinding="{Binding Status}"/>
+                    <GridViewColumn Header="ယူနစ်စျေး" Width="100" DisplayMemberBinding="{Binding UnitPrice}"/>
+                    <GridViewColumn Header="ပေါက်ဂဏန်း" Width="110" DisplayMemberBinding="{Binding ResultText}"/>
+                    <GridViewColumn Header="" Width="200">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="▶ Active" Style="{StaticResource SuccessButton}" Padding="10,4" Margin="0,0,8,0"
+                                            Visibility="{Binding CanActivate, Converter={StaticResource BoolToVis}}"
+                                            Click="Activate_Click" Tag="{Binding}"/>
+                                    <Button Content="ပိတ်မည်" Style="{StaticResource PlainButton}" Padding="10,4"
+                                            Visibility="{Binding CanClose, Converter={StaticResource BoolToVis}}"
+                                            Click="CloseTerm_Click" Tag="{Binding}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</Window>

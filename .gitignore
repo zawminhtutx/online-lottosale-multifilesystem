@@ -1,0 +1,15 @@
+node_modules
+.env
+*.db
+backups/
+
+# real data / separate project (not for deploy repo)
+ed_tpl4net.accdb
+lottery-system/
+
+# release APKs (built locally, shared outside git)
+release/
+
+# WPF admin client build
+online-admin-wpf/bin/
+online-admin-wpf/obj/

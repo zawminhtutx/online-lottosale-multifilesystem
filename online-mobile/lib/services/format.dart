@@ -1,0 +1,141 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+// Server timestamps are UTC: SQLite's "YYYY-MM-DD HH:MM:SS" (created_at) or ISO strings (open_at,
+// close_at, draw_at). Shown in the phone's local time.
+DateTime? parseDate(Object? value) {
+  if (value == null) return null;
+  final s = '$value';
+  if (s.isEmpty) return null;
+  final iso = s.contains('T') ? s : '${s.replaceFirst(' ', 'T')}Z';
+  return DateTime.tryParse(iso)?.toLocal();
+}
+
+final _dateTimeFmt = DateFormat('dd/MM/yyyy hh:mm a');
+final _timeFmt = DateFormat('hh:mm a');
+String dateTime(Object? value) {
+  final d = parseDate(value);
+  return d == null ? '-' : _dateTimeFmt.format(d);
+}
+
+String timeOnly(Object? value) {
+  final d = parseDate(value);
+  return d == null ? '-' : _timeFmt.format(d);
+}
+
+// "2 နာရီ 5 မိနစ်" until [value], or null once it has passed.
+String? timeLeft(Object? value, [DateTime? now]) {
+  final d = parseDate(value);
+  if (d == null) return null;
+  final left = d.difference(now ?? DateTime.now());
+  if (left.isNegative) return null;
+  final h = left.inHours;
+  final m = left.inMinutes % 60;
+  return h > 0 ? '$h နာရီ $m မိနစ်' : '$m မိနစ်';
+}
+
+// Open for betting right now: status open and inside its Ledger (open_at) .. close_at window.
+bool isTermOpen(Map term, [DateTime? now]) {
+  if (term['status'] != 'open') return false;
+  final at = now ?? DateTime.now();
+  final opens = parseDate(term['open_at']);
+  final closes = parseDate(term['close_at']);
+  if (opens != null && at.isBefore(opens)) return false;
+  return closes == null || at.isBefore(closes);
+}
+
+const ticketStatus = <String, (String, Color)>{
+  'active': ('စောင့်ဆိုင်းဆဲ', Color(0xFF2563EB)),
+  'won': ('ပေါက်', Color(0xFF059669)),
+  'lost': ('မပေါက်', Color(0xFF64748B)),
+  'cancelled': ('ပယ်ဖျက်', Color(0xFFDC2626)),
+};
+
+const termStatus = <String, (String, Color)>{
+  'open': ('ဖွင့်ထား', Color(0xFF2563EB)),
+  'closed': ('ပိတ်ပြီး', Color(0xFF64748B)),
+  'drawn': ('ဂဏန်းထွက်ပြီး', Color(0xFFD97706)),
+  'settled': ('ဆုငွေရှင်းပြီး', Color(0xFF059669)), // winnings paid; ငွေရှင်းပြီး = the admin's squaring up (cleared_at)
+};
+
+// Twod (တွဒ်) numbers of a 3D result — same rule as the server: the +1/-1 neighbours (wrapping
+// 999 <-> 000) and every other ordering of its digits.
+List<String> twodNumbers(String? r3) {
+  if (r3 == null || !RegExp(r'^\d{3}$').hasMatch(r3)) return const [];
+  final n = int.parse(r3);
+  final out = <String>[];
+  final seen = <String>{r3};
+  void add(String x) {
+    if (seen.add(x)) out.add(x);
+  }
+
+  add(((n + 1) % 1000).toString().padLeft(3, '0'));
+  add(((n + 999) % 1000).toString().padLeft(3, '0'));
+  void permute(String rest, String prefix) {
+    if (rest.isEmpty) return add(prefix);
+    for (var i = 0; i < rest.length; i++) {
+      permute(rest.substring(0, i) + rest.substring(i + 1), prefix + rest[i]);
+    }
+  }
+
+  permute(r3, '');
+  return out;
+}
+
+// 2D / 3D badge circle, as on the POS mobile app's term lists.
+class GameCircle extends StatelessWidget {
+  final String game;
+  final double radius;
+  const GameCircle(this.game, {super.key, this.radius = 22});
+
+  @override
+  Widget build(BuildContext context) {
+    final is3d = game == '3D';
+    // Indigo gradients that sit well on the dashboard's lavender cards: 3D deep indigo → navy,
+    // 2D sky → indigo.
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: is3d ? const [Color(0xFF6366F1), Color(0xFF1E1B4B)] : const [Color(0xFF38BDF8), Color(0xFF4F46E5)],
+        ),
+        boxShadow: [BoxShadow(color: const Color(0xFF1E1B4B).withValues(alpha: .25), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Text(is3d ? '3D' : '2D', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: radius * .6)),
+    );
+  }
+}
+
+class StatusChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const StatusChip(this.label, this.color, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: BorderRadius.circular(20)),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11.5)),
+    );
+  }
+}
+
+// Numbers and units (ဂဏန်း / ယူနစ်) in Poppins Light 300 — bundled in assets/fonts (see pubspec.yaml).
+// Myanmar text in the same string falls back to the system font.
+TextStyle numberStyle({double? fontSize, Color? color}) =>
+    TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w300, fontSize: fontSize, color: color);
+
+// A payment number shown with its middle hidden (09123456789 -> 091*****789); copying it still
+// copies the whole number.
+String maskNumber(Object? number) {
+  final s = '${number ?? ''}'.trim();
+  if (s.length <= 4) return s;
+  final keep = s.length >= 9 ? 3 : 2;
+  return '${s.substring(0, keep)}${'*' * (s.length - keep * 2)}${s.substring(s.length - keep)}';
+}
