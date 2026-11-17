@@ -145,24 +145,24 @@ class _TermDetailScreenState extends State<TermDetailScreen> {
     }
     final status = '${t['status']}';
     final session = context.read<Session>();
-    // A master / agent always sees Live Ledger of its own bettors; a master with ledger_access also
-    // sees other masters' sales. Term settings, break, closed numbers and result are admin-only.
-    final admin = session.isAdmin;
+    // Book tools follow can_manage: admin on every term, a master on its own files. A master with
+    // hot_edit may still edit hot numbers on a shared term it does not own.
+    final book = manages(t);
+    final hotEdit = book || (session.isMaster && asInt(session.user?['hot_edit']) == 1);
     final tabs = <(String, Widget)>[
       ('Live Ledger', LedgerTab(term: t, betTypes: betTypes)),
       // Setting tabs keep a readable width on tablets; the ledger, slips and report use it all.
-      if (admin) ('ဘရိတ်', ContentWidth(child: _BreakTab(term: t, betTypes: betTypes, locked: locked, onSaved: _load))),
+      if (book) ('ဘရိတ်', ContentWidth(child: _BreakTab(term: t, betTypes: betTypes, locked: locked, onSaved: _load))),
       // Settings: name, folder, unit price, open / close / draw times (like the web dashboard's tab).
-      if (admin)
+      if (book)
         ('Settings', TermFormScreen(key: ValueKey('settings-${t['id']}-$locked'), term: t, embedded: true, locked: locked, onSaved: (_) => _load())),
       // Max Unit per user is the admin's and the master's (the server allows those two).
       if (!session.isAgent) ('ထိုးသား Max Unit', ContentWidth(child: _UserLimitsTab(term: t, betTypes: betTypes, locked: locked))),
-      if (admin) ('ပိတ်ဂဏန်းများ', ContentWidth(child: _ClosedTab(term: t, betTypes: betTypes, locked: locked, onSaved: _load))),
-      // A master sees the hot numbers; it may add / edit them only when the admin turned hot_edit on.
-      ('ဟော့ဂဏန်းများ', ContentWidth(child: _HotTab(term: t, betTypes: betTypes, locked: locked || !(admin || (session.isMaster && asInt(session.user?['hot_edit']) == 1)), onSaved: _load))),
-      // အဝယ်: buy the units over the break (ကျွံ) from another dealer — admin only.
-      if (admin) ('အဝယ်', ContentWidth(child: _PurchaseTab(term: t, betTypes: betTypes))),
-      if (admin) ('ပေါက်သီး', ContentWidth(child: _ResultsTab(term: t, onChanged: _load))),
+      if (book) ('ပိတ်ဂဏန်းများ', ContentWidth(child: _ClosedTab(term: t, betTypes: betTypes, locked: locked, onSaved: _load))),
+      ('ဟော့ဂဏန်းများ', ContentWidth(child: _HotTab(term: t, betTypes: betTypes, locked: locked || !hotEdit, onSaved: _load))),
+      // အဝယ်: buy the units over the break (ကျွံ) from another dealer.
+      if (book) ('အဝယ်', ContentWidth(child: _PurchaseTab(term: t, betTypes: betTypes))),
+      if (book) ('ပေါက်သီး', ContentWidth(child: _ResultsTab(term: t, onChanged: _load))),
       ('စလစ်များ', SlipList(termId: asInt(t['id']), embedded: true)),
       ('စာရင်းကြည့်', _SummaryTab(termId: asInt(t['id']), folderId: t['folder_id'] == null ? null : asInt(t['folder_id']), title: '${t['description']}')),
     ];
@@ -188,11 +188,11 @@ class _TermDetailScreenState extends State<TermDetailScreen> {
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BetScreen(termId: asInt(t['id'])))),
               ),
             // Auto terms start as drafts: Active opens one, so users can see and bet on it.
-            if (admin && status == 'draft') TextButton(onPressed: () => _setStatus('open', 'Active လုပ်'), child: const Text('▶ Active')),
-            if (admin && status == 'open') TextButton(onPressed: () => _setStatus('closed', 'ထိုးကြေးပိတ်', danger: true), child: const Text('ပိတ်မည်')),
-            if (admin && status == 'closed') TextButton(onPressed: () => _setStatus('open', 'ပြန်ဖွင့်'), child: const Text('ပြန်ဖွင့်')),
-            if (!admin) IconButton(icon: const Icon(Icons.refresh), tooltip: 'Refresh', onPressed: _load),
-            if (admin)
+            if (book && status == 'draft') TextButton(onPressed: () => _setStatus('open', 'Active လုပ်'), child: const Text('▶ Active')),
+            if (book && status == 'open') TextButton(onPressed: () => _setStatus('closed', 'ထိုးကြေးပိတ်', danger: true), child: const Text('ပိတ်မည်')),
+            if (book && status == 'closed') TextButton(onPressed: () => _setStatus('open', 'ပြန်ဖွင့်'), child: const Text('ပြန်ဖွင့်')),
+            if (!book) IconButton(icon: const Icon(Icons.refresh), tooltip: 'Refresh', onPressed: _load),
+            if (book)
               PopupMenuButton<String>(
                 onSelected: (v) {
                   if (v == 'edit') _edit();

@@ -31,8 +31,8 @@ public partial class DashboardViewModel : ObservableObject
 
     public bool HasOpenFile => _session.Folder is not null;
     public bool ShowFolder => _session.IsUpline;
-    public bool ShowOverview => _session.IsUpline;
-    public bool CanModerateDeletes => _session.IsUpline;
+    public bool ShowOverview => _session.IsMaster || _session.IsAgent;
+    public bool CanModerateDeletes => _session.IsMaster || _session.IsAgent;
     public string FileText => _session.IsUser
         ? "—"
         : _session.Folder?.Name ?? "ဖိုင်ဆောက်ပါ";
@@ -58,17 +58,17 @@ public partial class DashboardViewModel : ObservableObject
 
     void BuildMenu()
     {
-        var admin = _session.IsBook;
-        var upline = _session.IsUpline;
+        var book = _session.IsBook;
+        var staff = _session.IsMaster || _session.IsAgent;
         (string Group, string Key, string Label, string Icon, bool Show)[] all =
         [
-            ("စာရင်း", "terms", "အပါတ်စဥ်", "\uE787", true),
-            ("စာရင်း", "bettors", "ထိုးသား၊ ဒိုင်များ", "\uE716", upline),
-            ("စာရင်း", "commission", "ကော်မရှင်", "\uE8EF", upline),
-            ("စာရင်း", "winnumbers", "ပေါက်ဂဏန်း", "\uE734", true),
-            ("ဖိုင်", "newfile", "ဖိုင်အသစ်", "\uE8F4", admin),
-            ("ဖိုင်", "openfile", "ဖိုင်ဖွင့်", "\uE838", upline),
-            ("အလျော်", "prizes", "အလျော်အဆ", "\uE8EC", upline),
+            ("စာရင်း", "terms", "အပါတ်စဥ်", "\uE787", staff),
+            ("စာရင်း", "bettors", "ထိုးသား၊ ဒိုင်များ", "\uE716", staff),
+            ("စာရင်း", "commission", "ကော်မရှင်", "\uE8EF", staff),
+            ("စာရင်း", "winnumbers", "ပေါက်ဂဏန်း", "\uE734", staff),
+            ("ဖိုင်", "newfile", "ဖိုင်အသစ်", "\uE8F4", book),
+            ("ဖိုင်", "openfile", "ဖိုင်ဖွင့်", "\uE838", staff),
+            ("အလျော်", "prizes", "အလျော်အဆ", "\uE8EC", staff),
             ("စီမံခန့်ခွဲ", "settings", "Settings", "\uE713", true),
         ];
         foreach (var g in all.Select(b => b.Group).Distinct())

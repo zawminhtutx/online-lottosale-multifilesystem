@@ -36,7 +36,7 @@ public sealed class Session
     }
 
     public bool IsAdmin => User.Role == "admin";
-    public bool IsBook => User.Role is "admin" or "master";
+    public bool IsBook => User.Role == "master";
     public bool IsMaster => User.Role == "master";
     public bool IsAgent => User.Role == "agent";
     public bool IsUser => User.Role == "user";

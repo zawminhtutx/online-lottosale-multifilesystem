@@ -137,12 +137,14 @@ const CREATE_PARENT_ROLES = { master: ['admin'], agent: ['master'], user: ['mast
 // an agent or a user, so it names the master / agent to put it in.
 const uplineHint = (role) => `${role === 'agent' ? 'Agent' : 'User'} ကို ဖွင့်ရာတွင် ဘယ် ${CREATE_PARENT_ROLES[role].map((r) => (r === 'master' ? 'Master' : 'Agent')).join(' / ')} အောက်ထားမည်ကို ရွေးပါ — Admin အောက် တိုက်ရိုက် မထားနိုင်ပါ`;
 
-// An account creates roles below its own: the admin every role under it (and further admins), a
-// master agents and users, an agent users. parent_id names the account in the creator's own
-// downline the new one hangs under; left out, it hangs under its creator, which the admin cannot do
-// for an agent or a user (see PARENT_ROLES).
+// The admin opens master accounts only. A master opens agents and users, an agent opens users.
+// parent_id names the account in the creator's own downline the new one hangs under; left out, it
+// hangs under its creator, which the admin cannot do for an agent or a user (see PARENT_ROLES).
 router.post('/', requireRole(...UPLINE_ROLES), async (req, res) => {
   const body = createSchema.parse(req.body);
+  if (req.user.role === 'admin' && body.role !== 'master') {
+    throw forbidden('The admin only opens master accounts');
+  }
   if (req.user.role !== 'admin' && !isAbove(req.user.role, body.role)) {
     throw forbidden(`${req.user.role} accounts cannot create ${body.role} accounts`);
   }
@@ -246,8 +248,12 @@ router.patch('/:id', requireRole(...UPLINE_ROLES), async (req, res) => {
   }
 
   if (body.sale_over !== undefined) {
-    if (req.user.role !== 'admin') throw forbidden('Only the admin can allow saving over the unit break');
-    if (!['master', 'agent'].includes(target.role)) throw badRequest('Over-break save is for master and agent accounts');
+    const adminOnMaster = req.user.role === 'admin' && target.role === 'master';
+    const masterOnAgent = req.user.role === 'master' && target.role === 'agent';
+    if (!adminOnMaster && !masterOnAgent) {
+      if (!['master', 'agent'].includes(target.role)) throw badRequest('Over-break save is for master and agent accounts');
+      throw forbidden('Only the upline can allow saving over the unit break');
+    }
     body.sale_over = body.sale_over ? 1 : 0;
   }
 
@@ -275,6 +281,11 @@ router.patch('/:id', requireRole(...UPLINE_ROLES), async (req, res) => {
   if (payKeys.some((k) => body[k] !== undefined)) {
     if (target.role === 'user') throw badRequest('KPay / WavePay numbers are for admin, master and agent accounts');
     for (const k of payKeys) if (body[k] === '') body[k] = null;
+  }
+
+  // Agents, users, sale and the rest of a book belong to that master. The admin edits masters only.
+  if (req.user.role === 'admin' && !['admin', 'master'].includes(target.role)) {
+    throw forbidden('The admin only manages master accounts');
   }
 
   const sets = [];

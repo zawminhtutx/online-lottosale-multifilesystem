@@ -103,11 +103,10 @@ test('full betting cycle', async () => {
   const admin = await login('admin', 'admin123');
   assert.ok(admin);
 
-  // The admin opens agents and users too, but never straight under itself — it names the master
-  // (for an agent) or the master / agent (for a user). agent1 hangs straight under the admin here
+  // The admin opens master accounts only. agent1 hangs straight under the admin here
   // (an account from before that rule), so it is seeded; see seedAccount.
-  assert.equal((await call('POST', '/api/users', admin, { username: 'agentx', password: 'xxxxxx', role: 'agent', name: 'X' })).status, 400);
-  assert.equal((await call('POST', '/api/users', admin, { username: 'userx', password: 'xxxxxx', role: 'user', name: 'X' })).status, 400);
+  assert.equal((await call('POST', '/api/users', admin, { username: 'agentx', password: 'xxxxxx', role: 'agent', name: 'X' })).status, 403);
+  assert.equal((await call('POST', '/api/users', admin, { username: 'userx', password: 'xxxxxx', role: 'user', name: 'X' })).status, 403);
   const agentRes = { body: await seedAccount({ username: 'agent1', password: 'agent123', role: 'agent', name: 'Agent One' }) };
   const agent = await login('agent1', 'agent123');
 
@@ -276,9 +275,9 @@ test('admin dashboard endpoints', async () => {
   assert.equal(vipRates.find((r) => r.bet_type_id === 0).multiplier, 85);
 
   const users = (await call('GET', '/api/users?role=user', admin)).body;
-  await call('PATCH', `/api/users/${users[0].id}`, admin, { prize_set_id: vip.body.id });
+  await call('PATCH', `/api/users/${users[0].id}`, agent, { prize_set_id: vip.body.id });
   assert.equal((await call('DELETE', `/api/prize-sets/${vip.body.id}`, admin)).status, 400);
-  await call('PATCH', `/api/users/${users[0].id}`, admin, { prize_set_id: 0 });
+  await call('PATCH', `/api/users/${users[0].id}`, agent, { prize_set_id: 0 });
   assert.equal((await call('DELETE', `/api/prize-sets/${vip.body.id}`, admin)).status, 200);
 
   const deposits = (await call('GET', '/api/wallet/transactions?type=deposit', admin)).body;
@@ -579,10 +578,10 @@ test('admin accounts: add, edit, own profile and password', async () => {
   const admin = await login('admin', 'admin123');
   const agent = await login('agent1', 'agent123');
 
-  // Only admins create admins; admins sit under no one.
+  // The admin no longer opens further admins. boss2 is seeded so the profile checks still run.
   assert.equal((await call('POST', '/api/users', agent, { username: 'boss2', password: 'boss123', role: 'admin', name: 'X' })).status, 403);
-  const created = await call('POST', '/api/users', admin, { username: 'boss2', password: 'boss123', role: 'admin', name: 'Second Admin' });
-  assert.equal(created.status, 201);
+  assert.equal((await call('POST', '/api/users', admin, { username: 'boss2', password: 'boss123', role: 'admin', name: 'Second Admin' })).status, 403);
+  const created = { body: await seedAccount({ username: 'boss2', password: 'boss123', role: 'admin', name: 'Second Admin', parent_id: null }) };
   assert.equal(created.body.parent_id, null);
   assert.ok((await call('GET', '/api/users?role=admin', admin)).body.some((u) => u.username === 'boss2'));
 
@@ -634,9 +633,10 @@ test('uplines give users any admin-made prize set; masters and agents are not as
 
   const created = await call('POST', '/api/users', agent, { username: 'oddsuser', password: 'user123', role: 'user', name: 'Odds', prize_set_id: high.id });
   assert.equal(created.body.prize_set_id, high.id);
-  assert.equal((await call('PATCH', `/api/users/${userId}`, admin, { prize_set_id: high.id })).body.prize_set_id, high.id);
+  assert.equal((await call('PATCH', `/api/users/${userId}`, agent, { prize_set_id: high.id })).body.prize_set_id, high.id);
+  assert.equal((await call('PATCH', `/api/users/${userId}`, admin, { prize_set_id: high.id })).status, 403);
 
-  await call('PATCH', `/api/users/${userId}`, admin, { prize_set_id: 0 });
+  await call('PATCH', `/api/users/${userId}`, agent, { prize_set_id: 0 });
 });
 
 test('Twod: 3D neighbours and other orderings win at the twod multiplier', async () => {
@@ -1079,7 +1079,9 @@ test('Live Ledger number tap: who bet on one number, with their units', async ()
 // an admin account made with it is an ordinary full admin.
 test('no view-only admins: ledger_only is gone', async () => {
   const admin = await login('admin', 'admin123');
-  const res = await call('POST', '/api/users', admin, { username: 'viewer', password: 'view123', role: 'admin', name: 'Viewer', ledger_only: true });
+  assert.equal((await call('POST', '/api/users', admin, { username: 'viewer', password: 'view123', role: 'admin', name: 'Viewer', ledger_only: true })).status, 403);
+  await seedAccount({ username: 'viewer', password: 'view123', role: 'admin', name: 'Viewer', parent_id: null });
+  const res = await call('POST', '/api/users', admin, { username: 'flagmaster', password: 'view123', role: 'master', name: 'Flag', ledger_only: true });
   assert.equal(res.status, 201);
   assert.ok(!('ledger_only' in res.body));
   const viewer = await login('viewer', 'view123');
@@ -1355,7 +1357,13 @@ test('master level: its own tree of accounts, money and slips; the term stays wi
   const mine = (await call('POST', '/api/term-folders', master, { name: 'Mine' })).body;
   assert.equal(mine.master_id, m.body.id);
   const own = (await call('POST', '/api/terms', master, { folder_id: mine.id, description: 'Own draw', game: '2D', unit_price: 100, status: 'open' })).body;
+  assert.equal(own.can_manage, true);
+  // Own file: hot numbers, break, closed numbers, max unit and settings need no hot_edit grant.
   assert.equal((await call('PUT', `/api/terms/${own.id}/limits`, master, [{ bet_type_id: 0, max_units: 5 }])).status, 200);
+  assert.equal((await call('PUT', `/api/terms/${own.id}/hot`, master, { percent: 20, numbers: [{ bet_type_id: 0, number: '07' }] })).status, 200);
+  assert.equal((await call('PUT', `/api/terms/${own.id}/blocked`, master, [{ bet_type_id: 0, number: '08' }])).status, 200);
+  assert.equal((await call('PUT', `/api/terms/${own.id}/user-limits`, master, [{ user_id: deep.body.id, bet_type_id: 0, max_units: 3 }])).status, 200);
+  assert.equal((await call('PATCH', `/api/terms/${own.id}`, master, { description: 'Own draw 2' })).body.description, 'Own draw 2');
   assert.equal((await call('GET', `/api/terms/${own.id}`, await login('agent1', 'agent123'))).status, 404);
   assert.equal((await call('PUT', `/api/terms/${term.id}/limits`, admin, [{ bet_type_id: 0, max_units: 50 }])).status, 200);
 
@@ -1501,9 +1509,8 @@ test('results: save and close without settling, settle later', async () => {
   assert.equal((await call('PUT', `/api/terms/${term.id}/results?settle=0`, admin, [{ slot: 2, value: '45' }])).status, 400);
 });
 
-// The admin opens agents and users as well, but always into somebody's tree: an agent under a
-// master, a user under a master or an agent. Only a master hangs straight under the admin.
-test('admin opens accounts into a master\'s tree, never straight under itself', async () => {
+// The admin opens masters only. A master opens its own agents and users.
+test('admin opens masters only; a master opens its own tree', async () => {
   const admin = await login('admin', 'admin123');
   const all = (await call('GET', '/api/users', admin)).body;
   const m = all.find((u) => u.username === 'master1');
@@ -1511,22 +1518,21 @@ test('admin opens accounts into a master\'s tree, never straight under itself', 
   const user1 = all.find((u) => u.username === 'user1');
   const open = (body) => call('POST', '/api/users', admin, { password: 'xxxxxx', ...body });
 
-  // Nothing named: the admin is no upline for either.
-  assert.equal((await open({ username: 'adminagent', role: 'agent', name: 'A' })).status, 400);
-  assert.equal((await open({ username: 'adminuser', role: 'user', name: 'U' })).status, 400);
-  // An agent goes under a master — not under another agent, and not under a user.
-  assert.equal((await open({ username: 'adminagent', role: 'agent', name: 'A', parent_id: ag.id })).status, 400);
-  const agent = await open({ username: 'adminagent', role: 'agent', name: 'A', parent_id: m.id });
+  assert.equal((await open({ username: 'adminagent', role: 'agent', name: 'A' })).status, 403);
+  assert.equal((await open({ username: 'adminuser', role: 'user', name: 'U' })).status, 403);
+  assert.equal((await open({ username: 'adminagent', role: 'agent', name: 'A', parent_id: m.id })).status, 403);
+  assert.equal((await open({ username: 'adminuser', role: 'user', name: 'U', parent_id: ag.id })).status, 403);
+  assert.equal((await open({ username: 'adminuser', role: 'user', name: 'U', parent_id: user1.id })).status, 403);
+
+  const master = await login('master1', 'master123');
+  const agent = await call('POST', '/api/users', master, { username: 'adminagent', password: 'xxxxxx', role: 'agent', name: 'A' });
   assert.equal(agent.status, 201, JSON.stringify(agent.body));
   assert.equal(agent.body.parent_id, m.id);
-  // A user goes under a master or an agent — here under that master's own agent.
-  assert.equal((await open({ username: 'adminuser', role: 'user', name: 'U', parent_id: user1.id })).status, 400);
-  const user = await open({ username: 'adminuser', role: 'user', name: 'U', parent_id: ag.id });
+  const user = await call('POST', '/api/users', master, { username: 'adminuser', password: 'xxxxxx', role: 'user', name: 'U', parent_id: ag.id });
   assert.equal(user.status, 201, JSON.stringify(user.body));
   assert.equal(user.body.parent_id, ag.id);
 
   // Both are in the master's own tree from the start, and it may manage them.
-  const master = await login('master1', 'master123');
   const seen = (await call('GET', '/api/users', master)).body.map((x) => x.username);
   assert.ok(seen.includes('adminagent') && seen.includes('adminuser'));
   assert.equal((await call('PATCH', `/api/users/${user.body.id}`, master, { name: 'U2' })).status, 200);
@@ -1535,6 +1541,17 @@ test('admin opens accounts into a master\'s tree, never straight under itself', 
   const m2 = await open({ username: 'master9', role: 'master', name: 'M9' });
   assert.equal(m2.status, 201, JSON.stringify(m2.body));
   assert.equal(m2.body.parent_id, (await call('GET', '/api/auth/me', admin)).body.id);
+  // The admin's master list carries the logo, and closing the account stops its login.
+  const marked = await call('POST', '/api/users', admin, {
+    username: 'masterlogo', password: 'xxxxxx', role: 'master', name: 'Logo M', master_name: 'Logo House', logo: 'data:image/png;base64,aaaa',
+  });
+  assert.equal(marked.status, 201, JSON.stringify(marked.body));
+  const listed = (await call('GET', '/api/users?role=master', admin)).body.find((u) => u.username === 'masterlogo');
+  assert.equal(listed.logo, 'data:image/png;base64,aaaa');
+  assert.equal((await call('PATCH', `/api/users/${listed.id}`, admin, { status: 'suspended' })).body.status, 'suspended');
+  assert.equal((await call('POST', '/api/auth/login', null, { username: 'masterlogo', password: 'xxxxxx' })).status, 403);
+  assert.equal((await call('PATCH', `/api/users/${listed.id}`, admin, { status: 'active' })).body.status, 'active');
+  assert.ok(await login('masterlogo', 'xxxxxx'));
   // A master / an agent still opens its own without naming anyone.
   assert.equal((await call('POST', '/api/users', master, { username: 'mown', password: 'xxxxxx', role: 'agent', name: 'Own' })).status, 201);
   assert.equal((await call('POST', '/api/users', await login('magent', 'xxxxxx'),
@@ -1901,7 +1918,10 @@ test('all delete: with sales an Excel backup first, then every term, folder and 
   // them first (ထိုးကြေးပိတ် → Excel backup → All delete).
   assert.match((await wipe({ export_token: first.token, confirm: 'DELETE' })).body.error, /term is open/);
   for (const t of (await call('GET', '/api/terms', admin)).body) {
-    if (t.status === 'open') assert.equal((await call('PATCH', `/api/terms/${t.id}`, admin, { status: 'closed' })).status, 200);
+    if (t.status !== 'open') continue;
+    // A master's own draw is closed by that master. The shared book is still the admin's.
+    if (t.can_manage) assert.equal((await call('PATCH', `/api/terms/${t.id}`, admin, { status: 'closed' })).status, 200);
+    else await db.execute({ sql: `UPDATE terms SET status = 'closed' WHERE id = ?`, args: [t.id] });
   }
   assert.match((await wipe({ export_token: first.token, confirm: 'DELETE' })).body.error, /New slips/);
 
@@ -1928,11 +1948,13 @@ test('all delete: with sales an Excel backup first, then every term, folder and 
 test('Sale over-break: admin always, master/agent only when the admin allows it', async () => {
   const admin = await login('admin', 'admin123');
   const master = (await call('POST', '/api/users', admin, { username: 'so_master', password: 'pass123', role: 'master', name: 'SO Master' })).body;
-  const agent = (await call('POST', '/api/users', admin, { username: 'so_agent', password: 'pass123', role: 'agent', name: 'SO Agent', parent_id: master.id })).body;
-  const user = (await call('POST', '/api/users', admin, { username: 'so_user', password: 'pass123', role: 'user', name: 'SO User', parent_id: agent.id })).body;
   const outsider = (await call('POST', '/api/users', admin, { username: 'so_out_m', password: 'pass123', role: 'master', name: 'Other master' })).body;
-  const outAgent = (await call('POST', '/api/users', admin, { username: 'so_out_a', password: 'pass123', role: 'agent', name: 'Other agent', parent_id: outsider.id })).body;
-  const outUser = (await call('POST', '/api/users', admin, { username: 'so_out_u', password: 'pass123', role: 'user', name: 'Other user', parent_id: outAgent.id })).body;
+  const masterTokEarly = await login('so_master', 'pass123');
+  const outTok = await login('so_out_m', 'pass123');
+  const agent = (await call('POST', '/api/users', masterTokEarly, { username: 'so_agent', password: 'pass123', role: 'agent', name: 'SO Agent' })).body;
+  const user = (await call('POST', '/api/users', masterTokEarly, { username: 'so_user', password: 'pass123', role: 'user', name: 'SO User', parent_id: agent.id })).body;
+  const outAgent = (await call('POST', '/api/users', outTok, { username: 'so_out_a', password: 'pass123', role: 'agent', name: 'Other agent' })).body;
+  const outUser = (await call('POST', '/api/users', outTok, { username: 'so_out_u', password: 'pass123', role: 'user', name: 'Other user', parent_id: outAgent.id })).body;
   await fund(user.id, 200000);
   await fund(outUser.id, 200000);
 
@@ -1946,8 +1968,8 @@ test('Sale over-break: admin always, master/agent only when the admin allows it'
 
   assert.equal((await call('GET', '/api/auth/me', agentTok)).body.sale_over, 0);
   assert.equal((await call('PATCH', `/api/users/${agent.id}`, agentTok, { sale_over: true })).status, 403);
-  assert.equal((await call('PATCH', `/api/users/${agent.id}`, masterTok, { sale_over: true })).status, 403);
   assert.equal((await call('PATCH', `/api/users/${user.id}`, admin, { sale_over: true })).status, 400);
+  assert.equal((await call('PATCH', `/api/users/${agent.id}`, admin, { sale_over: true })).status, 403);
 
   const place = (who, number, units, extra = {}) =>
     call('POST', '/api/tickets', who, { term_id: term.id, user_id: extra.user_id ?? user.id, entries: [{ bet_type_id: 0, input: number, units }], ...extra });
@@ -1964,11 +1986,21 @@ test('Sale over-break: admin always, master/agent only when the admin allows it'
   assert.equal((await call('POST', '/api/tickets', userTok, { term_id: term.id, entries: [{ bet_type_id: 0, input: '73', units: 8 }], save_over: true })).status, 403);
   assert.equal((await place(agentTok, '73', 8, { save_over: true })).status, 403);
 
-  assert.equal((await call('PATCH', `/api/users/${agent.id}`, admin, { sale_over: true })).body.sale_over, 1);
+  assert.equal((await call('PATCH', `/api/users/${agent.id}`, masterTok, { sale_over: true })).body.sale_over, 1);
   assert.equal((await call('GET', '/api/auth/me', agentTok)).body.sale_over, 1);
   const agentOver = await place(agentTok, '73', 8, { save_over: true });
   assert.equal(agentOver.status, 201, JSON.stringify(agentOver.body));
   assert.equal(agentOver.body.items[0].units, 8);
+
+  const ownFolder = (await call('POST', '/api/term-folders', masterTok, { name: 'SO own' })).body;
+  const ownTerm = (await call('POST', '/api/terms', masterTok, { folder_id: ownFolder.id, description: 'SO own', game: '2D', unit_price: 100, status: 'open' })).body;
+  await call('PUT', `/api/terms/${ownTerm.id}/limits`, masterTok, [{ bet_type_id: 0, max_units: 5 }]);
+  const ownOver = await call('POST', '/api/tickets', masterTok, {
+    term_id: ownTerm.id, user_id: user.id, save_over: true,
+    entries: [{ bet_type_id: 0, input: '81', units: 8 }],
+  });
+  assert.equal(ownOver.status, 201, JSON.stringify(ownOver.body));
+  assert.equal(ownOver.body.items[0].units, 8);
 
   assert.equal((await place(masterTok, '74', 8, { save_over: true })).status, 403);
   assert.equal((await call('PATCH', `/api/users/${master.id}`, admin, { sale_over: true })).body.sale_over, 1);

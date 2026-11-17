@@ -1,6 +1,6 @@
 import { api, cached, session } from '/common/js/api.js';
 import { t } from '/common/js/i18n.js';
-import { badge, balanceCell, busy, checkbox, dateTime, field, h, input, mount, openModal, pageHeader, select, table, tabs, toast } from '/common/js/ui.js';
+import { badge, balanceCell, busy, checkbox, confirmDialog, dateTime, field, h, input, mount, openModal, pageHeader, select, table, tabs, toast } from '/common/js/ui.js';
 import { unlimitedCheckbox } from '/common/js/account-cards.js';
 
 // Account lists of the admin dashboard. The admin sees every role (masters, agents, users, admins)
@@ -12,7 +12,7 @@ export default async function users(main, { query, rerender }) {
   const viewer = session.get()?.user;
   const role0 = viewer?.role;
   const downline = role0 !== 'admin'; // a master or an agent: its own tree only
-  const roles = { master: ['agent', 'user'], agent: ['user'] }[role0] ?? ['master', 'agent', 'user', 'admin'];
+  const roles = { admin: ['master'], master: ['agent', 'user'], agent: ['user'] }[role0] ?? ['master'];
   // The roles this dashboard offers a "+ New …" button for.
   const canCreate = (r) => ({ admin: ['master'], master: ['agent', 'user'], agent: ['user'] }[role0] ?? []).includes(r);
   const role = roles.includes(query.get('role')) ? query.get('role') : roles.includes('agent') ? 'agent' : roles[0];
@@ -59,6 +59,7 @@ export default async function users(main, { query, rerender }) {
     { label: t('Status'), render: (u) => badge(u.status) },
     { label: t('Last login'), render: (u) => dateTime(u.last_login_at) },
   ] : [
+    role === 'master' && { label: t('Logo'), render: (u) => masterLogo(u) },
     { label: t('Username'), render: (u) => h('a', { href: `#/users/${u.id}` }, u.username) },
     { label: t('Name'), render: (u) => [u.name, u.name_mm && h('div', { class: 'muted' }, u.name_mm)] },
     { label: t('Phone'), render: (u) => u.phone ?? '—' },
@@ -79,6 +80,7 @@ export default async function users(main, { query, rerender }) {
     },
     { label: t('Balance'), align: 'right', render: (u) => balanceCell(u) },
     { label: t('Status'), render: (u) => badge(u.status) },
+    role === 'master' && role0 === 'admin' && { label: '', render: (u) => closeMasterButton(u, rerender) },
     { label: t('Last login'), render: (u) => dateTime(u.last_login_at) },
   ].filter(Boolean);
 
@@ -107,6 +109,34 @@ export default async function users(main, { query, rerender }) {
 }
 
 const accountLabel = (a) => `${a.username} — ${a.name}${a.role === 'master' ? ` (${t('master')})` : ''}`;
+
+function masterLogo(u) {
+  if (!u.logo) return '—';
+  return h('img', {
+    src: u.logo, alt: '',
+    style: 'width:36px;height:36px;object-fit:cover;border-radius:8px;display:block;background:#f3f4f6',
+  });
+}
+
+function closeMasterButton(u, rerender) {
+  const open = u.status === 'active';
+  const set = async (e) => {
+    e.stopPropagation();
+    const button = e.currentTarget;
+    const ok = await confirmDialog(
+      open ? t('Close this master? They will not be able to sign in.') : t('Reopen this master account?'),
+      { confirmLabel: open ? t('Close') : t('Reopen'), danger: open },
+    );
+    if (!ok) return;
+    await busy(button, async () => {
+      await api.patch(`/users/${u.id}`, { status: open ? 'suspended' : 'active' });
+      toast(open ? t('Master closed') : t('Master reopened'));
+      rerender();
+    }).catch(() => {});
+  };
+  return h('div', { class: 'actions', onclick: (e) => e.stopPropagation() },
+    h('button', { type: 'button', class: open ? 'btn btn-sm btn-danger' : 'btn btn-sm', onclick: set }, open ? t('Close') : t('Reopen')));
+}
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {

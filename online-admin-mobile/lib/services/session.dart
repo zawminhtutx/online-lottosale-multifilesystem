@@ -7,10 +7,9 @@ import 'live.dart';
 // The app's navigator: signing out closes every open screen so Login shows.
 final navigatorKey = GlobalKey<NavigatorState>();
 
-// Roles that may use this app: the admin (superadmin), masters and agents. A master runs its own
-// tree — agents, users, their money and slips — and an agent its own users; neither gets the
-// အပါတ်စဥ် settings or the break (see the server). Each role has its own background colour
-// (RoleLook in widgets/common.dart).
+// Roles that may use this app: the admin (opens master accounts only), masters and agents.
+// A master runs its own book — files, terms, breaks, prize sets, agents, users and their money.
+// An agent runs only its own users. Each role has its own background colour (RoleLook).
 const appRoles = {'admin', 'master', 'agent'};
 
 // The signed-in OnlineLotto admin, master or agent.
@@ -21,7 +20,9 @@ class Session extends ChangeNotifier {
   bool get isAdmin => user?['role'] == 'admin';
   bool get isMaster => user?['role'] == 'master';
   bool get isAgent => user?['role'] == 'agent';
-  // A master or an agent: runs its own tree, not the အပါတ်စဥ် settings.
+  // Files, terms, breaks and prize sets belong to the master. The admin only opens masters.
+  bool get isBook => isMaster;
+  // A master or an agent: has a wallet of its own. Deposits it makes come out of that balance.
   bool get isDownline => isMaster || isAgent;
   bool get canSaveOver => isAdmin || asInt(user?['sale_over']) == 1;
   String get role => '${user?['role'] ?? ''}';

@@ -145,7 +145,7 @@ class _BetScreenState extends State<BetScreen> {
     } catch (_) {}
     if (!mounted) return;
     purchased.clear();
-    if (context.read<Session>().isAdmin) {
+    if (manages(term)) {
       try {
         final view = Map<String, dynamic>.from(await Api.instance.get('/terms/${widget.termId}/purchases') as Map);
         for (final raw in (view['purchases'] as List? ?? const [])) {
@@ -178,6 +178,7 @@ class _BetScreenState extends State<BetScreen> {
         digits: digits,
         breakCap: breakCap,
         cartUnits: _cartUnits(),
+        showPurchases: manages(term),
       ),
     ));
     if (mounted) _loadLedger();
@@ -244,7 +245,7 @@ class _BetScreenState extends State<BetScreen> {
   }
 
   Future<void> _editBreak() async {
-    if (!context.read<Session>().isAdmin || term == null || betType == null) return;
+    if (!manages(term) || term == null || betType == null) return;
     final status = '${term!['status']}';
     if (const {'drawn', 'settled', 'cancelled'}.contains(status)) {
       _snack('ဒီအပါတ်စဥ် ဘရိတ် ပြင်လို့ မရတော့ပါ', Colors.red);
@@ -304,7 +305,7 @@ class _BetScreenState extends State<BetScreen> {
   }
 
   Future<void> _buyExtras() async {
-    if (!context.read<Session>().isAdmin) return;
+    if (!manages(term)) return;
     try {
       final data = Map<String, dynamic>.from(await Api.instance.get('/terms/${widget.termId}/purchases') as Map);
       if (data['has_results'] == true) {
@@ -530,7 +531,7 @@ class _BetScreenState extends State<BetScreen> {
         'term_id': widget.termId,
         'user_id': customerId,
         'entries': _entries(cart),
-        if (session.canSaveOver && saveOver) 'save_over': true,
+        if ((session.canSaveOver || manages(term)) && saveOver) 'save_over': true,
       }) as Map);
       // Cleared in place: an open keypad (docked or pop-up) holds this same list and stays open
       // after a save for the next slip.
@@ -669,7 +670,7 @@ class _BetScreenState extends State<BetScreen> {
           // စလစ်: the slips screen on top of this one — the cart stays as it is, and the balance
           // is read again on the way back (a slip may have been cancelled there). The term and the
           // ledger come in live over the WebSocket, so there is no Refresh button to press.
-          if (session.role == 'admin') GlassButton(icon: Icons.tune, label: 'ဘရိတ်', onPressed: _editBreak),
+          if (manages(t)) GlassButton(icon: Icons.tune, label: 'ဘရိတ်', onPressed: _editBreak),
           const SizedBox(width: 12),
         ],
       ),
@@ -755,7 +756,7 @@ class _BetScreenState extends State<BetScreen> {
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                               overflow: TextOverflow.ellipsis),
                         ),
-                        if (session.role == 'admin') ...[
+                        if (manages(t)) ...[
                           GlassButton(icon: Icons.shopping_bag_outlined, label: 'အဝယ်', onPressed: _buyExtras),
                           const SizedBox(width: 6),
                         ],
@@ -1012,7 +1013,7 @@ class _BetScreenState extends State<BetScreen> {
           const Text('စုစုပေါင်း', style: TextStyle(color: Color(0xFF1E1B4B), fontWeight: FontWeight.w700)),
           const Spacer(),
           Text('${session.money(grandTotal)} Ks', style: const TextStyle(color: Color(0xFF1E1B4B), fontWeight: FontWeight.w900, fontSize: 16)),
-          if (session.canSaveOver) ...[
+          if (session.canSaveOver || manages(term)) ...[
             const SizedBox(width: 8),
             InkWell(
               onTap: () => setState(() => saveOver = !saveOver),

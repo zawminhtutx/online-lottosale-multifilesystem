@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/api.dart';
+import '../services/format.dart';
 import '../widgets/common.dart';
 
-// အလျော်အဆ — payout multiplier per prize set / bet type (web Prize rates). Admin only.
+// အလျော်အဆ — payout multiplier per prize set / bet type. Admin edits every set. A master
+// edits the sets it created; a shared set (can_manage false) stays read-only.
 class PrizeRatesScreen extends StatefulWidget {
   const PrizeRatesScreen({super.key});
 
@@ -210,6 +212,7 @@ class _PrizeRatesScreenState extends State<PrizeRatesScreen> {
                         final set = sets![i];
                         final id = asInt(set['id']);
                         final busy = _busy.contains(id);
+                        final own = manages(set);
                         return SectionCard(
                           title: '${set['name']}${id == 0 ? '  ·  Default' : ''}',
                           trailing: Text('${asInt(set['user_count'])} အကောင့်', style: TextStyle(color: Colors.grey[600], fontSize: 12.5)),
@@ -223,9 +226,10 @@ class _PrizeRatesScreenState extends State<PrizeRatesScreen> {
                                     width: 110,
                                     child: TextField(
                                       controller: _mult[id]![asInt(bt['id'])],
+                                      enabled: own,
                                       keyboardType: TextInputType.number,
                                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                      onChanged: (_) => setState(() => _dirty.add(id)),
+                                      onChanged: own ? (_) => setState(() => _dirty.add(id)) : null,
                                       decoration: InputDecoration(
                                         labelText: '${bt['code']} ×',
                                         isDense: true,
@@ -238,16 +242,17 @@ class _PrizeRatesScreenState extends State<PrizeRatesScreen> {
                                     width: 110,
                                     child: TextField(
                                       controller: _twod[id],
+                                      enabled: own,
                                       keyboardType: TextInputType.number,
                                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                      onChanged: (_) => setState(() => _dirty.add(id)),
+                                      onChanged: own ? (_) => setState(() => _dirty.add(id)) : null,
                                       decoration: const InputDecoration(labelText: 'တွဒ် ×', isDense: true, border: OutlineInputBorder()),
                                     ),
                                   ),
                               ],
                             ),
                             const SizedBox(height: 10),
-                            Row(children: [
+                            if (own) Row(children: [
                               IconButton(tooltip: 'အမည် ပြင်ရန်', onPressed: () => _rename(set), icon: const Icon(Icons.edit_outlined)),
                               IconButton(
                                 tooltip: id == 0 ? 'Default ကို ဖျက်မရပါ' : 'ဖျက်ရန်',

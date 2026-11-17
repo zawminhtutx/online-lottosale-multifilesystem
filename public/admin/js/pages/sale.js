@@ -57,6 +57,8 @@ export default async function sale(main, { params }) {
   const me = await api.get('/auth/me').catch(() => actor);
   if (me) session.set({ ...session.get(), user: me });
   const book = me?.role === 'admin' || me?.role === 'master';
+  // Admin always. A master on its own file, with no extra grant. An agent only when sale_over is on.
+  const mayOver = (term) => me?.role === 'admin' || !!term?.can_manage || Number(me?.sale_over) === 1;
   const canOver = book || Number(me?.sale_over) === 1;
 
   const [customers, openTerms, meta] = await Promise.all([
@@ -673,7 +675,7 @@ export default async function sale(main, { params }) {
         term_id: st.term.id,
         user_id: st.customerId,
         entries: toEntries(st.cart),
-        ...(canOver && st.saveOver ? { save_over: true } : {}),
+        ...(mayOver(st.term) && st.saveOver ? { save_over: true } : {}),
       });
       playSound('checkOut');
       st.cart = [];

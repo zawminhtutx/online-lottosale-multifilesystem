@@ -118,3 +118,10 @@ class StatusChip extends StatelessWidget {
 // Myanmar text in the same string falls back to the system font.
 TextStyle numberStyle({double? fontSize, Color? color}) =>
     TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w300, fontSize: fontSize, color: color);
+
+// The server stamps can_manage on a file, term or prize set the signed-in account may change.
+// Admin manages every book. A master manages only its own. A missing flag is treated as allowed.
+bool manages(Map? row) {
+  final v = row?['can_manage'];
+  return v != false && v != 0;
+}

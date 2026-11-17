@@ -41,6 +41,7 @@ dependencies:
   web_socket_channel: ^3.0.3
   share_plus: ^13.3.0
   audioplayers: ^6.7.1
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
@@ -106,18 +107,16 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# App icon: assets/icon/icon.png + icon_foreground.png, cut from assets/icon/logo.jpg (admin logo: crown, key and person): the
-# glowing bubble, cut out round on the tile's dark navy. Regenerate with `dart run flutter_launcher_icons`.
+# App icon is assets/icon/logo.jpg (crown, key and person). Regenerate with `dart run flutter_launcher_icons`.
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#030C26" # the logo tile's dark navy, behind the foreground
-  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
-  # The foreground PNG already sits the bubble in the visible 2/3 of the layer: no extra inset.
+  image_path: "assets/icon/logo.jpg"
+  adaptive_icon_background: "#0B4CB8"
+  adaptive_icon_foreground: "assets/icon/logo.jpg"
   adaptive_icon_foreground_inset: 0
   web:
     generate: true
-    image_path: "assets/icon/icon.png"
-    background_color: "#4338CA"
-    theme_color: "#4338CA"
+    image_path: "assets/icon/logo.jpg"
+    background_color: "#0B4CB8"
+    theme_color: "#0B4CB8"

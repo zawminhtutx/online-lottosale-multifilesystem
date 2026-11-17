@@ -7,11 +7,11 @@ import { badRequest, forbidden, notFound } from '../errors.js';
 
 export const router = Router();
 
-// Shared prize sets (master_id NULL) are made by the admin. A master makes and prices its own
-// sets, and may still hand out any shared set. Agents only hand sets out.
+// Shared prize sets (master_id NULL) stay with the admin. A master prices only the sets it made.
+// Agents only hand sets out.
 function managesSet(actor, set) {
-  if (actor.role === 'admin') return true;
   const owner = set?.master_id == null ? null : Number(set.master_id);
+  if (actor.role === 'admin') return owner == null;
   if (owner == null) return false;
   return actor.role === 'master' && owner === Number(actor.id);
 }

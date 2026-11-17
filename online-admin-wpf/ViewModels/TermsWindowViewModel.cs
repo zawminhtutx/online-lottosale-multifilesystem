@@ -13,6 +13,7 @@ public sealed class TermListRow
     public string Status { get; init; } = "";
     public string UnitPrice { get; init; } = "";
     public string ResultText { get; init; } = "";
+    public bool CanManage { get; init; }
     public bool CanActivate { get; init; }
     public bool CanClose { get; init; }
 }
@@ -48,8 +49,9 @@ public partial class TermsWindowViewModel : ObservableObject
                     Status = t.Status,
                     UnitPrice = t.UnitPrice.ToString("N0"),
                     ResultText = win,
-                    CanActivate = CanManage && t.Status is "draft",
-                    CanClose = CanManage && t.Status is "open",
+                    CanManage = t.CanManage,
+                    CanActivate = t.CanManage && t.Status is "draft",
+                    CanClose = t.CanManage && t.Status is "open",
                 });
             }
         }

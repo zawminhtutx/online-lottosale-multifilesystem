@@ -23,9 +23,9 @@ const TABS = [
   ['tickets', 'စလစ်များ'],
   ['summary', 'စာရင်းကြည့်'],
 ];
-// A master gets its own tree's tabs (Live Ledger of its bettors always; other masters' sales only
-// when the admin turns ledger_access on). An agent gets the same, without the per-user Max Unit.
-// Term settings, break, closed numbers, and results belong to the admin.
+// can_manage (own file, or the admin): every tab — settings, break, max unit, closed numbers,
+// hot numbers, purchases, results, slips. A master looking at the shared book, and an agent,
+// only get the read tabs. An agent has no per-user Max Unit.
 const MASTER_TABS = new Set(['ledger', 'userlimits', 'hot', 'exposure', 'tickets', 'summary']);
 const AGENT_TABS = new Set([...MASTER_TABS].filter((k) => k !== 'userlimits'));
 const READ_ONLY_FOR_MASTER = new Set(['hot']);

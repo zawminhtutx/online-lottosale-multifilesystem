@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api.dart';
-import '../services/format.dart';
 import '../services/live.dart';
 import '../services/session.dart';
 import '../widgets/dash_style.dart';
@@ -16,6 +15,7 @@ class SaleLedgerScreen extends StatefulWidget {
   final int digits;
   final int breakCap;
   final Map<String, int> cartUnits;
+  final bool showPurchases;
 
   const SaleLedgerScreen({
     super.key,
@@ -24,6 +24,7 @@ class SaleLedgerScreen extends StatefulWidget {
     required this.digits,
     required this.breakCap,
     required this.cartUnits,
+    this.showPurchases = false,
   });
 
   @override
@@ -113,7 +114,7 @@ class _SaleLedgerScreenState extends State<SaleLedgerScreen> {
     } catch (_) {}
     if (!mounted) return;
     purchased.clear();
-    if (context.read<Session>().isAdmin) {
+    if (widget.showPurchases) {
       try {
         final view = Map<String, dynamic>.from(await Api.instance.get('/terms/${widget.termId}/purchases') as Map);
         for (final raw in (view['purchases'] as List? ?? const [])) {

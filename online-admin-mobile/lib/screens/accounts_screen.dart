@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api.dart';
@@ -24,6 +27,18 @@ class AccountsScreen extends StatefulWidget {
   State<AccountsScreen> createState() => _AccountsScreenState();
 }
 
+ImageProvider? accountLogo(Object? logo) {
+  final s = logo?.toString() ?? '';
+  if (s.startsWith('http://') || s.startsWith('https://')) return NetworkImage(s);
+  final comma = s.indexOf(',');
+  if (!s.startsWith('data:image') || comma < 0) return null;
+  try {
+    return MemoryImage(base64Decode(s.substring(comma + 1)));
+  } catch (_) {
+    return null;
+  }
+}
+
 const roleTitles = {'master': 'Masters', 'agent': 'Agents', 'user': 'Users', 'admin': 'Admins'};
 const roleNames = {'master': 'Master', 'agent': 'Agent', 'user': 'User', 'admin': 'Admin'};
 
@@ -40,14 +55,37 @@ class _AccountsScreenState extends State<AccountsScreen> {
   String get title => roleTitles[widget.role]!;
   bool get isAdmins => widget.role == 'admin';
 
-  // Roles each signed-in account opens itself (same rule as src/routes/users.js).
+  // Who may press "+ အသစ်". Admin opens masters. A master opens agents and users. An agent opens users.
   static const _creates = {
-    'admin': {'master', 'admin', 'agent', 'user'},
+    'admin': {'master'},
     'master': {'agent', 'user'},
     'agent': {'user'},
   };
   bool canCreate(Session session) => (_creates[session.role] ?? const <String>{}).contains(widget.role);
   bool canSetHotEdit(Session session) => session.isAdmin && widget.role == 'master';
+
+  Future<void> _setClosed(Map<String, dynamic> u, bool close, Future<void> Function() reload) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(close ? 'Master ပိတ်မည်' : 'Master ပြန်ဖွင့်မည်'),
+        content: Text(close ? '${u['username']} ကို ပိတ်မလား။ ပိတ်ပြီးလျှင် ဝင်၍ မရတော့ပါ။' : '${u['username']} ကို ပြန်ဖွင့်မလား။'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('မလုပ်တော့')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(close ? 'ပိတ်မည်' : 'ပြန်ဖွင့်မည်')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Api.instance.patch('/users/${asInt(u['id'])}', {'status': close ? 'suspended' : 'active'});
+      if (!mounted) return;
+      snack(context, close ? 'Master အကောင့် ပိတ်ပြီးပါပြီ' : 'Master အကောင့် ပြန်ဖွင့်ပြီးပါပြီ');
+      reload();
+    } catch (e) {
+      if (mounted) errorSnack(context, e);
+    }
+  }
 
   Future<void> _setHotEdit(Map<String, dynamic> u, bool on, Future<void> Function() reload) async {
     try {
@@ -96,7 +134,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
               key: _loader,
               load: _load,
               builder: (ctx, all, reload) {
-                final rows = all.where((u) => search.isEmpty || '${u['username']} ${u['name']} ${u['phone'] ?? ''}'.toLowerCase().contains(search)).toList();
+                final rows = all.where((u) => search.isEmpty || '${u['username']} ${u['name']} ${u['master_name'] ?? ''} ${u['email'] ?? ''} ${u['phone'] ?? ''}'.toLowerCase().contains(search)).toList();
                 final total = rows.fold<int>(0, (a, u) => a + asInt(u['balance']));
                 if (rows.isEmpty) return const EmptyView('မရှိပါ', icon: Icons.person_off);
                 return ListView(
@@ -121,7 +159,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
                                       ? const Color(0xFFEA580C)
                                       : const Color(0xFF0EA5E9))
                                   .withValues(alpha: .15),
-                          child: Text('${u['username']}'.substring(0, 1).toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900)),
+                          backgroundImage: accountLogo(u['logo']),
+                          child: accountLogo(u['logo']) == null
+                              ? Text('${u['username']}'.substring(0, 1).toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900))
+                              : null,
                         ),
                         title: Row(
                           children: [
@@ -148,6 +189,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         subtitle: Text(
                           [
                             u['name'],
+                            if ((u['master_name'] ?? '').toString().isNotEmpty) u['master_name'],
+                            if ((u['email'] ?? '').toString().isNotEmpty) u['email'],
+                            if (asInt(u['ledger_mail']) == 1) 'Ledger email',
                             // The account above (left out when it is the signed-in master itself).
                             if (widget.role != 'master' && u['parent_username'] != null && asInt(u['parent_id']) != session.id)
                               '${widget.role == 'agent' ? 'Master' : 'အထက်'}: ${u['parent_username']}',
@@ -157,6 +201,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                           style: const TextStyle(fontSize: 12),
                         ),
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          if (session.isAdmin && widget.role == 'master')
+                            IconButton(
+                              tooltip: u['status'] == 'active' ? 'ပိတ်မည်' : 'ပြန်ဖွင့်မည်',
+                              icon: Icon(u['status'] == 'active' ? Icons.block : Icons.lock_open, color: u['status'] == 'active' ? const Color(0xFFDC2626) : const Color(0xFF059669)),
+                              onPressed: () => _setClosed(u, u['status'] == 'active', reload),
+                            ),
                           if (canSetHotEdit(session))
                             Tooltip(
                               message: 'ဟော့ဂဏန်း ပြင်ခွင့်',
@@ -203,10 +253,14 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
   final _username = TextEditingController();
   final _password = TextEditingController();
   final _name = TextEditingController();
+  final _masterName = TextEditingController();
   final _nameMm = TextEditingController();
+  final _email = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
   bool unlimited = false;
+  bool ledgerMail = false;
+  String? logo;
   String status = 'active';
   int? parentId;
   List<Map<String, dynamic>> uplines = []; // accounts the new one may hang under, beside the creator
@@ -228,10 +282,15 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
     parentId = widget.parentId;
     if (a != null) {
       _name.text = '${a['name'] ?? ''}';
+      _masterName.text = '${a['master_name'] ?? ''}';
       _nameMm.text = '${a['name_mm'] ?? ''}';
+      _email.text = '${a['email'] ?? ''}';
       _phone.text = '${a['phone'] ?? ''}';
       _address.text = '${a['address'] ?? ''}';
       unlimited = asInt(a['unlimited']) == 1;
+      ledgerMail = asInt(a['ledger_mail']) == 1;
+      final rawLogo = a['logo']?.toString();
+      logo = rawLogo == null || rawLogo.isEmpty ? null : rawLogo;
       status = '${a['status']}';
     }
     // A new user may hang under an agent (or, for the admin, a master); a new agent under a master
@@ -254,6 +313,39 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _username.dispose();
+    _password.dispose();
+    _name.dispose();
+    _masterName.dispose();
+    _nameMm.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _address.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickLogo() async {
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 70);
+      if (file == null || !mounted) return;
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 350000) {
+        setState(() => error = 'Logo သည် 350 KB အောက် ဖြစ်ရပါမည်');
+        return;
+      }
+      final name = file.name.toLowerCase();
+      final mime = file.mimeType ?? (name.endsWith('.png') ? 'image/png' : 'image/jpeg');
+      setState(() {
+        logo = 'data:$mime;base64,${base64Encode(bytes)}';
+        error = null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => error = 'Logo ဖတ်၍ မရပါ');
+    }
+  }
+
   Future<void> _save() async {
     setState(() {
       busy = true;
@@ -266,6 +358,20 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
       });
     }
     String? opt(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+    final masterName = _masterName.text.trim();
+    if (widget.role == 'master' && masterName.isEmpty) {
+      return setState(() {
+        busy = false;
+        error = 'Master name ထည့်ပါ';
+      });
+    }
+    final email = _email.text.trim();
+    if (email.isNotEmpty && !email.contains('@')) {
+      return setState(() {
+        busy = false;
+        error = 'Email မမှန်ပါ';
+      });
+    }
     try {
       final Object saved;
       if (isNew) {
@@ -275,6 +381,10 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
           'role': widget.role,
           if (parentId != null) 'parent_id': parentId,
           'name': _name.text.trim(),
+          if (widget.role == 'master') 'master_name': masterName,
+          if (widget.role == 'master' && logo != null) 'logo': logo,
+          if (!isAdmin && email.isNotEmpty) 'email': email,
+          if (widget.role == 'agent' || widget.role == 'user') 'ledger_mail': ledgerMail,
           if (opt(_nameMm) != null) 'name_mm': opt(_nameMm),
           if (opt(_phone) != null) 'phone': opt(_phone),
           if (opt(_address) != null) 'address': opt(_address),
@@ -286,6 +396,10 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
           'name_mm': opt(_nameMm),
           'phone': opt(_phone),
           'address': opt(_address),
+          if (!isAdmin) 'email': email,
+          if (widget.role == 'master') 'master_name': masterName,
+          if (widget.role == 'master') 'logo': logo,
+          if (!isSelf && (widget.role == 'agent' || widget.role == 'user')) 'ledger_mail': ledgerMail,
           if (!isSelf) 'status': status,
           if (!isAdmin && !isSelf) 'unlimited': unlimited,
           if (_password.text.isNotEmpty) 'password': _password.text,
@@ -357,8 +471,27 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
           ],
           TextField(controller: _name, decoration: deco('အမည်')),
           gap,
+          if (widget.role == 'master') ...[
+            TextField(controller: _masterName, decoration: deco('Master name')),
+            gap,
+          ],
           TextField(controller: _nameMm, decoration: deco('မြန်မာအမည်')),
           gap,
+          if (!isAdmin) ...[
+            TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: deco('Email')),
+            gap,
+          ],
+          if (widget.role == 'master') ...[
+            Row(children: [
+              CircleAvatar(radius: 28, backgroundImage: accountLogo(logo), child: accountLogo(logo) == null ? const Icon(Icons.image_outlined) : null),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(onPressed: _pickLogo, icon: const Icon(Icons.photo_library_outlined), label: const Text('Logo')),
+              ),
+              if (logo != null) IconButton(tooltip: 'Logo ဖယ်ရန်', onPressed: () => setState(() => logo = null), icon: const Icon(Icons.close)),
+            ]),
+            gap,
+          ],
           TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: deco('ဖုန်း')),
           gap,
           TextField(controller: _address, decoration: deco('လိပ်စာ')),
@@ -372,6 +505,14 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
             ),
             gap,
           ],
+          if (!isSelf && (widget.role == 'agent' || widget.role == 'user'))
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: ledgerMail,
+              onChanged: (v) => setState(() => ledgerMail = v),
+              title: const Text('Ledger email', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('အပါတ်စဉ် ပိတ်ချိန်ရောက်ရင် 00-99 နဲ့ 000-999 လယ်ဂျာကို ဒီ email ဆီ ပို့မည်'),
+            ),
           if (!isAdmin && !isSelf)
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -480,6 +621,16 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
     try {
       await Api.instance.post('/wallet/$kind', {'user_id': asInt(u['id']), 'amount': value, if (note.text.trim().isNotEmpty) 'note': note.text.trim()});
       if (mounted) snack(context, deposit ? 'ငွေသွင်းပြီးပါပြီ' : 'ငွေထုတ်ပြီးပါပြီ');
+      _load();
+    } catch (e) {
+      if (mounted) errorSnack(context, e);
+    }
+  }
+
+  Future<void> _setLedgerMail(bool on) async {
+    try {
+      await Api.instance.patch('/users/${widget.userId}', {'ledger_mail': on});
+      if (mounted) snack(context, on ? 'Ledger email ဖွင့်ပြီး' : 'Ledger email ပိတ်ပြီး');
       _load();
     } catch (e) {
       if (mounted) errorSnack(context, e);
@@ -601,16 +752,18 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
     final isSelf = asInt(u['id']) == session.id;
     // can_manage false: an account outside the caller's tree, opened through view-all — read only.
     final manage = u['can_manage'] != false;
-    final canSetSaleOver = session.isAdmin && manage && !isSelf && (isMaster || isAgent);
+    final canSetSaleOver = manage && !isSelf && ((session.isAdmin && isMaster) || (session.isMaster && isAgent));
     final canSetHotEdit = session.isAdmin && manage && !isSelf && isMaster;
+    final canSetLedgerMail = manage && !isSelf && (isAgent || u['role'] == 'user');
+    final logo = accountLogo(u['logo']);
     // The admin's own cash only moves in and out of a master (src/routes/wallet.js); a master or an
     // agent hands its own balance to anyone in its tree.
-    final canMove = manage && !isSelf && (session.isAdmin ? isMaster : true);
+    final canMove = manage && !isSelf && !session.isAdmin;
     return Scaffold(
       appBar: AppBar(
         title: Text('${u['username']}'),
         actions: [
-          if (session.isAdmin && !isSelf)
+          if (session.isAdmin && !isSelf && isMaster)
             IconButton(icon: const Icon(Icons.swap_horiz), tooltip: 'Role ပြောင်းရန်', onPressed: _changeRole),
           if (manage) IconButton(icon: const Icon(Icons.edit), tooltip: 'ပြင်ရန်', onPressed: _edit),
         ],
@@ -624,6 +777,10 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
               children: [
                 Row(
                   children: [
+                    if (logo != null) ...[
+                      CircleAvatar(radius: 26, backgroundImage: logo),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,10 +789,13 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                             '${u['name']}${(u['name_mm'] ?? '').toString().isNotEmpty ? ' · ${u['name_mm']}' : ''}',
                             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
                           ),
+                          if ((u['master_name'] ?? '').toString().isNotEmpty)
+                            Text('${u['master_name']}', style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text(
                             '${roleNames[u['role']] ?? u['role']} · ${u['phone'] ?? '-'}',
                             style: TextStyle(color: Colors.grey[700]),
                           ),
+                          if ((u['email'] ?? '').toString().isNotEmpty) Text('${u['email']}', style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
                           if (u['address'] != null) Text('${u['address']}', style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
                         ],
                       ),
@@ -659,9 +819,6 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   const SizedBox(height: 10),
                   if (!manage)
                     Text('ကြည့်ရုံသာ — ဤအကောင့်သည် သင့်အောက်တွင် မရှိပါ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                  if (session.isAdmin && !isSelf && manage && !isMaster)
-                    Text('Admin သည် Master အကောင့်များကိုသာ ငွေသွင်း / ငွေထုတ် လုပ်နိုင်ပါသည် — ဤအကောင့်ကို သက်ဆိုင်ရာ Master / Agent က ထည့်ပေးရပါမည်။',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                   if (canMove) Row(
                     children: [
                       Expanded(
@@ -683,7 +840,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                       ),
                     ],
                   ),
-                  if (isMaster) ...[
+                  if (!session.isAdmin && isMaster) ...[
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
                       onPressed: () => Navigator.of(context).push(
@@ -693,7 +850,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                       label: const Text('ဤ Master ၏ Agents'),
                     ),
                   ],
-                  if (isAgent || isMaster) ...[
+                  if (!session.isAdmin && (isAgent || isMaster)) ...[
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
                       onPressed: () => Navigator.of(context).push(
@@ -715,7 +872,17 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   value: asInt(u['hot_edit']) == 1,
                   onChanged: _setHotEdit,
                   title: const Text('ဟော့ဂဏန်း ပြင်ခွင့်', style: TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: const Text('ခွင့်ပြုလျှင် ဤ Master သည် အပါတ်စဥ်၏ ဟော့ဂဏန်းများကို ထည့် / ပြင်နိုင်မည်'),
+                  subtitle: const Text('ကိုယ့်ဖိုင်ကို ဟော့ဂဏန်း အမြဲပြင်နိုင်သည်။ ခွင့်ပြုလျှင် မျှဝေဖိုင်ကိုလည်း ပြင်နိုင်သည်'),
+                ),
+              ]),
+            if (canSetLedgerMail)
+              SectionCard(children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: asInt(u['ledger_mail']) == 1,
+                  onChanged: _setLedgerMail,
+                  title: const Text('Ledger email', style: TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: const Text('အပါတ်စဉ် ပိတ်ချိန်ရောက်ရင် 00-99 နဲ့ 000-999 လယ်ဂျာကို ဒီ email ဆီ ပို့မည်'),
                 ),
               ]),
             if (canSetSaleOver)
@@ -725,7 +892,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   value: asInt(u['sale_over']) == 1,
                   onChanged: _setSaleOver,
                   title: const Text('အကျွံများသိမ်း', style: TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: const Text('ခွင့်ပြုထားလျှင် ဤအကောင့်သည် အရောင်းတွင် ဘရိတ်ကျော်၍ သိမ်းနိုင်မည်'),
+                  subtitle: const Text('Master သည် ကိုယ့်ဖိုင်တွင် ခွင့်မလိုပါ။ ဤခလုတ်သည် Agent နှင့် မျှဝေဖိုင်အတွက်သာ ဖြစ်သည်'),
                 ),
               ]),
             if (!isAdmin)

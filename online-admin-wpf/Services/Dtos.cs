@@ -39,6 +39,7 @@ public sealed class FolderDto
     public string Name { get; set; } = "";
     public int TermCount { get; set; }
     public int AutoTerms { get; set; }
+    public bool CanManage { get; set; }
     public string? CreatedAt { get; set; }
 }
 
@@ -54,6 +55,7 @@ public sealed class TermDto
     public string? DrawAt { get; set; }
     public int? FolderId { get; set; }
     public string? FolderName { get; set; }
+    public bool CanManage { get; set; }
     public List<TermLimitDto> Limits { get; set; } = [];
     public List<TermResultDto> Results { get; set; } = [];
 }

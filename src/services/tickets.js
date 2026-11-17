@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import { all, db, one, withTransaction } from '../db.js';
 import { canAccess, loadAccessibleUser } from '../auth.js';
-import { assertTermVisible } from '../books.js';
+import { assertTermVisible, managesFolder } from '../books.js';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { betTypeFitsTerm, expandInput } from '../rules.js';
 import { applyBalance } from './wallet.js';
@@ -63,7 +63,6 @@ export async function placeTicket(actor, { term_id, user_id, entries, dry_run: d
   const bettor = await loadAccessibleUser(db, actor, user_id ?? actor.id);
   if (bettor.role !== 'user') throw badRequest('Only accounts with role "user" can hold tickets');
   if (bettor.status !== 'active') throw forbidden('Account is not active');
-  if (saveOver && !canSaveOver(actor)) throw forbidden('Saving over the unit break is not allowed');
 
   // Pricing data that does not change while betting; read outside the write lock.
   const [betTypes, rates, discounts, prizeSet] = await Promise.all([
@@ -97,6 +96,13 @@ export async function placeTicket(actor, { term_id, user_id, entries, dry_run: d
     const term = await one(tx, 'SELECT * FROM terms WHERE id = ?', [term_id]);
     if (!term) throw notFound('Term not found');
     await assertTermVisible(tx, bettor, term);
+    if (saveOver && !canSaveOver(actor)) {
+      const folder = term.folder_id
+        ? await one(tx, 'SELECT master_id FROM term_folders WHERE id = ?', [term.folder_id])
+        : null;
+      // A master runs its own file: the break, and saving past it, need no extra grant.
+      if (!managesFolder(actor, folder ?? { master_id: null })) throw forbidden('Saving over the unit break is not allowed');
+    }
     if (!isTermOpenForBetting(term)) throw badRequest('Betting is closed for this term');
     for (const g of groups) {
       if (!betTypeFitsTerm(g.bt, term.game)) throw badRequest(`This term is ${term.game} only (${g.bt.description} not allowed)`);

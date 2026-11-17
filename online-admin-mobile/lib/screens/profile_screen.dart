@@ -132,18 +132,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             CircleAvatar(
               radius: 26,
               backgroundColor: lookFor(session.role).seed.withValues(alpha: .15),
-              child: Text('${u['username'] ?? '?'}'.substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              backgroundImage: accountLogo(u['logo']),
+              child: accountLogo(u['logo']) == null
+                  ? Text('${u['username'] ?? '?'}'.substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900))
+                  : null,
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('${u['name'] ?? ''}${(u['name_mm'] ?? '').toString().isNotEmpty ? ' · ${u['name_mm']}' : ''}',
                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+                if ((u['master_name'] ?? '').toString().isNotEmpty)
+                  Text('${u['master_name']}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 Text('@${u['username'] ?? ''} · ${session.roleName}', style: TextStyle(color: Colors.grey[700])),
               ]),
             ),
           ]),
           const Divider(height: 22),
+          _row('Email', u['email']),
           _row('ဖုန်း', u['phone']),
           _row('လိပ်စာ', u['address']),
           _row('နောက်ဆုံးဝင်ချိန်', u['last_login_at'] == null ? null : dateTime(u['last_login_at'])),

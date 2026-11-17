@@ -29,12 +29,8 @@ class _Tile {
   const _Tile(this.label, this.icon, this.color, this.builder, {this.requests = false, this.slipDeletes = false});
 }
 
-// Admin / master / agent dashboard: today's figures, account totals and the feature tiles. The
-// requests tile shows the pending count, kept live over the WebSocket. A master sees only its own
-// tree (the server scopes every list) and has no Masters / Admins tiles; an agent sees only its own
-// users, so it has no Agents tile either. A master's and an agent's own balance is shown on top,
-// since every deposit they make comes out of it. The background colour follows the role
-// (RoleLook in widgets/common.dart).
+// Admin opens master accounts and nothing else. A master runs its own book and its own agents and
+// users. An agent sees only its own users. A master's and an agent's own balance is shown on top.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -44,10 +40,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   static List<_Tile> _tilesFor(Session session) => [
-    for (final t in _allTiles)
-      if ((session.isAdmin || !_adminOnlyTiles.contains(t.label)) && !(session.isAgent && _notForAgent.contains(t.label))) t,
+    if (session.isAdmin)
+      _allTiles.firstWhere((t) => t.label == 'Masters')
+    else
+      for (final t in _allTiles)
+        if (t.label != 'Masters' &&
+            t.label != 'Admins' &&
+            (!_bookTiles.contains(t.label) || session.isBook) &&
+            !(session.isAgent && _notForAgent.contains(t.label)))
+          t,
   ];
-  static const _adminOnlyTiles = {'Masters', 'Admins', 'အလျော်အဆ'};
+  // Prize rates belong to the master's own book.
+  static const _bookTiles = {'အလျော်အဆ'};
   // An agent has no agents under it; ကော်မရှင် stays — it sets its own users'.
   static const _notForAgent = {'Agents'};
   static final _allTiles = <_Tile>[
@@ -157,11 +161,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(child: Text(session.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16))),
                 if (error != null) const Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 18),
               ]),
-              const SizedBox(height: 12),
-              const Text('ယနေ့ အရောင်း', style: TextStyle(color: Colors.white70, fontSize: 12.5)),
-              Text('${session.money(asInt(o?['today']?['sales']))} ကျပ်',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 26)),
-              Text('စလစ် ${session.money(asInt(o?['today']?['tickets']))}', style: const TextStyle(color: Colors.white70)),
+              if (!session.isAdmin) ...[
+                const SizedBox(height: 12),
+                const Text('ယနေ့ အရောင်း', style: TextStyle(color: Colors.white70, fontSize: 12.5)),
+                Text('${session.money(asInt(o?['today']?['sales']))} ကျပ်',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 26)),
+                Text('စလစ် ${session.money(asInt(o?['today']?['tickets']))}', style: const TextStyle(color: Colors.white70)),
+              ] else ...[
+                const SizedBox(height: 8),
+                const Text('မာစတာ အကောင့်ဖွင့်ရန်', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
             ]),
           ),
           const SizedBox(height: 10),
@@ -176,17 +185,17 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
           ],
           Row(children: [
-            if (session.isAdmin && count('master', 'count') > 0) ...[
-              _Stat('Masters', '${count('master', 'count')}', sub: '${session.money(count('master', 'balance'))} Ks'),
+            if (session.isAdmin)
+              _Stat('Masters', '${count('master', 'count')}', sub: '${session.money(count('master', 'balance'))} Ks')
+            else ...[
+              if (!session.isAgent) ...[
+                _Stat('Agents', '${count('agent', 'count')}', sub: '${session.money(count('agent', 'balance'))} Ks', small: session.isDownline),
+                const SizedBox(width: 8),
+              ],
+              _Stat('Users', '${count('user', 'count')}', sub: '${session.money(count('user', 'balance'))} Ks', small: session.isDownline),
               const SizedBox(width: 8),
+              _Stat('ဖွင့်ထား', '${terms('open')}', sub: 'အပါတ်စဥ်', small: session.isDownline),
             ],
-            if (!session.isAgent) ...[
-              _Stat('Agents', '${count('agent', 'count')}', sub: '${session.money(count('agent', 'balance'))} Ks', small: session.isDownline),
-              const SizedBox(width: 8),
-            ],
-            _Stat('Users', '${count('user', 'count')}', sub: '${session.money(count('user', 'balance'))} Ks', small: session.isDownline),
-            const SizedBox(width: 8),
-            _Stat('ဖွင့်ထား', '${terms('open')}', sub: 'အပါတ်စဥ်', small: session.isDownline),
           ]),
           const SizedBox(height: 14),
           LayoutBuilder(builder: (ctx, constraints) {

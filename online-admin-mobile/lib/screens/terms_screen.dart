@@ -490,20 +490,21 @@ class _TermsScreenState extends State<TermsScreen> {
   Widget build(BuildContext context) {
     final session = context.read<Session>();
     final current = folder;
-    // A master only looks at the terms: creating, editing and deleting terms and folders and the
-    // auto-term templates are the admin's (အပါတ်စဥ် settings).
-    final admin = session.isAdmin;
+    // Admin and master each run a book. A master only changes folders it owns (can_manage);
+    // the shared book stays visible and is left to the admin.
+    final book = session.isBook;
+    final ownFolder = current != null && manages(current);
     return Scaffold(
       appBar: AppBar(
         title: Text(current == null ? 'အပါတ်စဥ်' : '📁 ${current['name']}'),
         actions: [
-          if (admin) IconButton(
+          if (book) IconButton(
             tooltip: 'Auto အပါတ်စဥ်',
             icon: const Icon(Icons.settings_suggest_outlined),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AutoTermsScreen())),
           ),
-          if (admin) IconButton(tooltip: 'ဖိုင်အသစ်', icon: const Icon(Icons.create_new_folder_outlined), onPressed: () => _editFolder()),
-          if (admin && current != null)
+          if (book) IconButton(tooltip: 'ဖိုင်အသစ်', icon: const Icon(Icons.create_new_folder_outlined), onPressed: () => _editFolder()),
+          if (ownFolder)
             PopupMenuButton<String>(
               onSelected: (v) => v == 'rename' ? _editFolder(current) : _deleteFolder(current),
               itemBuilder: (_) => const [
@@ -513,7 +514,7 @@ class _TermsScreenState extends State<TermsScreen> {
             ),
         ],
       ),
-      floatingActionButton: admin
+      floatingActionButton: book && (current == null || ownFolder)
           ? FloatingActionButton.extended(
               onPressed: _create,
               icon: const Icon(Icons.add),
@@ -633,6 +634,11 @@ class _TermFormScreenState extends State<TermFormScreen> {
   String? error;
 
   bool get isNew => widget.term == null;
+  // A new term goes into a folder this account owns. The current folder stays listed while editing.
+  List<Map<String, dynamic>> get folderChoices => [
+    for (final f in folders)
+      if (manages(f) || asInt(f['id']) == folderId) f,
+  ];
 
   @override
   void initState() {
@@ -724,10 +730,10 @@ class _TermFormScreenState extends State<TermFormScreen> {
         // ဖိုင် (required). Rebuilt once the folder list arrives so the initial value is in the items.
         DropdownButtonFormField<int>(
           key: ValueKey(folders.length),
-          initialValue: folders.any((f) => asInt(f['id']) == folderId) ? folderId : null,
+          initialValue: folderChoices.any((f) => asInt(f['id']) == folderId) ? folderId : null,
           decoration: deco('ဖိုင်'),
           hint: const Text('ဖိုင်ရွေးပါ'),
-          items: [for (final f in folders) DropdownMenuItem(value: asInt(f['id']), child: Text('📁 ${f['name']}'))],
+          items: [for (final f in folderChoices) DropdownMenuItem(value: asInt(f['id']), child: Text('📁 ${f['name']}'))],
           onChanged: (v) => setState(() => folderId = v ?? folderId),
         ),
         const SizedBox(height: 12),

@@ -27,10 +27,14 @@ public partial class TermsWindow : Window
 
     async void New_Click(object sender, RoutedEventArgs e)
     {
-        if (!_vm.CanManage) return;
         if (_session.Folder is null)
         {
             MessageBox.Show(this, "ဖိုင် အရင်ဖွင့်ပါ", "အပါတ်စဥ်");
+            return;
+        }
+        if (!_session.Folder.CanManage)
+        {
+            MessageBox.Show(this, "ဤဖိုင်ကို ပြင်၍ မရပါ", "အပါတ်စဥ်");
             return;
         }
         var form = TermFormDialog.AskNew(this);
@@ -44,10 +48,14 @@ public partial class TermsWindow : Window
 
     async Task EditSelectedAsync()
     {
-        if (!_vm.CanManage) return;
         if (_vm.Selected is not { } row)
         {
             MessageBox.Show(this, "အပါတ်စဥ် ရွေးပါ", "အပါတ်စဥ်");
+            return;
+        }
+        if (!row.CanManage)
+        {
+            MessageBox.Show(this, "ဤအပါတ်စဥ်ကို ပြင်၍ မရပါ", "အပါတ်စဥ်");
             return;
         }
         var full = await _vm.LoadOneAsync(row.Id);
@@ -60,10 +68,14 @@ public partial class TermsWindow : Window
 
     async void Delete_Click(object sender, RoutedEventArgs e)
     {
-        if (!_vm.CanManage) return;
         if (_vm.Selected is not { } row)
         {
             MessageBox.Show(this, "အပါတ်စဥ် ရွေးပါ", "အပါတ်စဥ်");
+            return;
+        }
+        if (!row.CanManage)
+        {
+            MessageBox.Show(this, "ဤအပါတ်စဥ်ကို ပြင်၍ မရပါ", "အပါတ်စဥ်");
             return;
         }
         if (MessageBox.Show(this, $"\"{row.Description}\" ကို ဖျက်မလား?", "Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)

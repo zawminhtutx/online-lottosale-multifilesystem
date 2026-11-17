@@ -13,10 +13,11 @@ import { openDueTerms } from '../services/auto-open.js';
 
 export const router = Router();
 
-// Each master runs the files and terms it owns (breaks, results, settle, purchases). The admin
-// still runs folders that have no master — the original shared book. A master with hot_edit may
-// still edit hot numbers on that shared book. Live Ledger stays the actor's own tree; an
-// admin-enabled master's Live Ledger also spans other masters' accounts.
+// Each master runs every admin job on the files and terms it owns: settings, break, max unit,
+// closed numbers, hot numbers, purchases, results, slips. None of those need hot_edit or
+// ledger_access. The admin still runs folders that have no master — the original shared book.
+// A master with hot_edit may still edit hot numbers on that shared book. Live Ledger of the
+// master's own tree is always on; ledger_access only adds other masters' trees.
 //
 // Every successful change to a term (new term, edit, limits, results, settle) is pushed to live
 // clients, so the online web app's term list updates without a refresh.
@@ -186,6 +187,7 @@ router.post('/', requireRole('admin', 'master'), async (req, res) => {
     .parse(req.body);
   await assertManagesFolder(db, req.user, t.folder_id);
   const term = await withTransaction((tx) => insertTerm(tx, t, req.user.id));
+  term.can_manage = true;
   res.status(201).json(term);
 });
 

@@ -45,7 +45,7 @@ public partial class WinNumbersWindow : Window
                 Game = t.Game,
                 Status = t.Status,
                 Number = t.Results.OrderBy(r => r.Slot).Select(r => r.Value).FirstOrDefault() ?? "",
-                CanEdit = _session.IsBook && t.Status is "open" or "closed" or "drawn" or "settled",
+                CanEdit = t.CanManage && t.Status is "open" or "closed" or "drawn" or "settled",
             }).ToList();
         }
         catch (ApiException ex) { HintText.Text = ex.Message; }

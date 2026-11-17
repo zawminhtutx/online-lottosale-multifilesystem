@@ -2,12 +2,12 @@ import { one } from './db.js';
 import { badRequest, forbidden, notFound } from './errors.js';
 
 // A master's book is its own files (term_folders.master_id) and the terms inside them.
-// Folders with no master are the original shared book: the admin still runs that one, and every
-// account can see it. A master never edits another master's files.
+// The admin does not edit them: deleting a file, its terms and its agents is that master's job.
+// Folders with no master are the original shared book, still run by the admin.
 
 export function managesFolder(actor, folder) {
-  if (actor.role === 'admin') return true;
   const owner = folder?.master_id == null || folder.master_id === '' ? null : Number(folder.master_id);
+  if (actor.role === 'admin') return owner == null;
   if (owner == null) return false;
   return actor.role === 'master' && owner === Number(actor.id);
 }

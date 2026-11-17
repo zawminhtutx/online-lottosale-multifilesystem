@@ -15,16 +15,16 @@ export default async function userDetail(main, { params, rerender }) {
   const viewer = session.get()?.user;
   const byAdmin = viewer?.role === 'admin';
   const hasChildren = ['master', 'agent'].includes(user.role);
-  const children = hasChildren ? await api.get(`/users?parent_id=${id}`) : [];
+  const children = hasChildren && !byAdmin ? await api.get(`/users?parent_id=${id}`) : [];
   const parent = user.parent_id ? await api.get(`/users/${user.parent_id}`).catch(() => null) : null;
   const isSelf = viewer?.id === user.id;
   const isAdmin = user.role === 'admin';
   // The admin's own cash only moves in and out of a master; a master / agent moves it anywhere in
   // its own tree. ကော်မရှင် is handed down one step at a time (see src/routes/users.js).
-  const canMove = !byAdmin || user.role === 'master';
-  const canSetCommission = !isSelf && ({ admin: ['master'], master: ['agent', 'user'], agent: ['user'] }[viewer?.role] ?? []).includes(user.role);
-  // အကျွံများသိမ်း on the Sale page: the admin turns it on for a master or agent.
-  const canSetSaleOver = byAdmin && !isSelf && ['master', 'agent'].includes(user.role);
+  const canMove = !byAdmin && !isSelf;
+  const canSetCommission = !byAdmin && !isSelf && ({ master: ['agent', 'user'], agent: ['user'] }[viewer?.role] ?? []).includes(user.role);
+  // အကျွံများသိမ်း: the admin turns it on for a master; a master turns it on for an agent.
+  const canSetSaleOver = !isSelf && ((byAdmin && user.role === 'master') || (viewer?.role === 'master' && user.role === 'agent'));
   const canSetHotEdit = byAdmin && !isSelf && user.role === 'master';
   // A master / an agent hands over its own money (see services/wallet.js); the admin's deposits are
   // new money.
@@ -41,16 +41,15 @@ export default async function userDetail(main, { params, rerender }) {
     h('div', { class: 'grid grid-2' },
       profileCard(user, { prizeSets: user.role === 'user' ? prizeSets : null, canSetUnlimited: !isAdmin && !isSelf, isSelf, rerender }),
       h('div', { class: 'grid' },
-        !isAdmin && walletCard(user, { isSelf, rerender, hint: walletHint, canMove,
-          noMoveNote: 'Admin သည် master အကောင့်များကိုသာ ငွေထည့် / ငွေထုတ် လုပ်နိုင်ပါသည် — ဤအကောင့်ကို သက်ဆိုင်ရာ Master / Agent က ထည့်ပေးရပါမည်။' }),
+        !byAdmin && !isAdmin && walletCard(user, { isSelf, rerender, hint: walletHint, canMove }),
         isSelf ? changePasswordCard() : passwordCard(user))),
     user.role !== 'user' && payAccountsCard(user, { rerender }),
     canSetCommission && discountCard(user, meta.bet_types),
     canSetSaleOver && saleOverCard(user, rerender),
     canSetHotEdit && hotEditCard(user, rerender),
     viewer?.role === 'admin' && !isSelf && await roleCard(user, rerender),
-    hasChildren && childrenCard(user, children, isSelf),
-    !isAdmin && walletHistoryCard(transactions));
+    !byAdmin && hasChildren && childrenCard(user, children, isSelf),
+    !byAdmin && !isAdmin && walletHistoryCard(transactions));
 }
 
 function hotEditCard(account, rerender) {

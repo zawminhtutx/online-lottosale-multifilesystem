@@ -14,22 +14,20 @@ import walletTransfer from '/common/js/pages/wallet-transfer.js';
 import commissions from '/common/js/pages/commissions.js';
 import sale from './pages/sale.js';
 
-// Masters and agents sign in here too and run their own tree (its accounts, money and slips): a
-// master its agents and their users, an agent its own users. What belongs to the admin alone —
-// admin and master accounts, prize-rate tables, creating and editing အပါတ်စဥ် and their break,
-  // ငွေ Transfer — is hidden from them (and refused by the server anyway). An agent decides
-  // slip delete requests for its own users. The sidebar accent follows the role (see shell.js).
+// The admin only opens master accounts. A master runs its own book and its own tree: files, terms,
+// sale, prize rates, agents, users, commissions, wallets and slip-delete requests. An agent runs
+// its own users. The sidebar accent follows the role (see shell.js).
 const roleOf = (user) => user?.role;
 const isAdmin = (user) => roleOf(user) === 'admin';
-const isBook = (user) => roleOf(user) === 'admin' || roleOf(user) === 'master';
-const isAgent = (user) => roleOf(user) === 'agent';
+const isMaster = (user) => roleOf(user) === 'master';
+const notAdmin = (user) => !isAdmin(user);
 // Pages for one group of roles only; anyone else is sent back to the dashboard.
 const onlyFor = (allowed, page) => (main, ctx) =>
   (allowed.includes(roleOf(session.get()?.user)) ? page(main, ctx) : void (location.hash = '#/dashboard'));
-const bookOnly = (page) => onlyFor(['admin', 'master'], page);
+const bookOnly = (page) => onlyFor(['master'], page);
+const staffOnly = (page) => onlyFor(['master', 'agent'], page);
 const adminNav = isAdmin;
-const bookNav = isBook;
-const notAgentNav = (user) => !isAgent(user);
+const masterNav = isMaster;
 
 const usersTab = (role) => (path, query) => path === '/users' && (query.get('role') ?? 'agent') === role;
 
@@ -41,32 +39,31 @@ startApp({
     [/^\/users$/, users],
     [/^\/users\/(\d+)$/, userDetail],
     [/^\/profile$/, userDetail],
-    [/^\/sale(?:\/(\d+))?$/, sale],
-    [/^\/terms$/, terms],
-    [/^\/terms\/(\d+)$/, termDetail],
+    [/^\/sale(?:\/(\d+))?$/, staffOnly(sale)],
+    [/^\/terms$/, staffOnly(terms)],
+    [/^\/terms\/(\d+)$/, staffOnly(termDetail)],
     [/^\/prizes$/, bookOnly(prizes)],
-    [/^\/prize-assign$/, prizeAssign],
-    [/^\/commissions$/, commissions],
-    [/^\/wallet$/, wallet],
-    [/^\/wallet-transfer$/, walletTransfer],
-    [/^\/wallet-requests$/, walletRequests],
-    [/^\/slip-cancel-requests$/, slipCancelRequests],
+    [/^\/prize-assign$/, staffOnly(prizeAssign)],
+    [/^\/commissions$/, staffOnly(commissions)],
+    [/^\/wallet$/, staffOnly(wallet)],
+    [/^\/wallet-transfer$/, staffOnly(walletTransfer)],
+    [/^\/wallet-requests$/, staffOnly(walletRequests)],
+    [/^\/slip-cancel-requests$/, staffOnly(slipCancelRequests)],
   ],
   nav: [
     { href: '#/dashboard', icon: '◧', label: 'Dashboard', active: (p) => /^\/(dashboard)?$/.test(p) },
     { href: '#/users?role=master', icon: '◆', label: 'Masters', active: usersTab('master'), visible: adminNav },
-    { href: '#/users?role=agent', icon: '◎', label: 'Agents', active: usersTab('agent'), visible: notAgentNav },
-    { href: '#/users?role=user', icon: '◉', label: 'Users', active: usersTab('user') },
-    { href: '#/users?role=admin', icon: '★', label: 'Admins', active: usersTab('admin'), visible: adminNav },
-    { href: '#/sale', icon: '✎', label: 'Sale', active: (p) => p.startsWith('/sale') },
-    { href: '#/terms', icon: '▦', label: 'Terms', active: (p) => p.startsWith('/terms') },
-    { href: '#/prizes', icon: '🏅', label: 'Prize rates', active: (p) => p === '/prizes', visible: bookNav },
-    { href: '#/prize-assign', icon: '🔗', label: 'Prize set assign', active: (p) => p === '/prize-assign' },
-    { href: '#/commissions', icon: '%', label: 'Commission', active: (p) => p === '/commissions' },
-    { href: '#/wallet', icon: '⇄', label: 'Wallet', active: (p) => p === '/wallet' },
-    { href: '#/wallet-transfer', icon: '⇆', label: 'ငွေ Transfer', active: (p) => p === '/wallet-transfer' },
-    { href: '#/wallet-requests', icon: '⇅', label: 'Wallet requests', active: (p) => p === '/wallet-requests' },
-    { href: '#/slip-cancel-requests', icon: '🗑', label: 'Slip delete requests', active: (p) => p === '/slip-cancel-requests' },
+    { href: '#/users?role=agent', icon: '◎', label: 'Agents', active: usersTab('agent'), visible: masterNav },
+    { href: '#/users?role=user', icon: '◉', label: 'Users', active: usersTab('user'), visible: notAdmin },
+    { href: '#/sale', icon: '✎', label: 'Sale', active: (p) => p.startsWith('/sale'), visible: notAdmin },
+    { href: '#/terms', icon: '▦', label: 'Terms', active: (p) => p.startsWith('/terms'), visible: notAdmin },
+    { href: '#/prizes', icon: '🏅', label: 'Prize rates', active: (p) => p === '/prizes', visible: masterNav },
+    { href: '#/prize-assign', icon: '🔗', label: 'Prize set assign', active: (p) => p === '/prize-assign', visible: notAdmin },
+    { href: '#/commissions', icon: '%', label: 'Commission', active: (p) => p === '/commissions', visible: notAdmin },
+    { href: '#/wallet', icon: '⇄', label: 'Wallet', active: (p) => p === '/wallet', visible: notAdmin },
+    { href: '#/wallet-transfer', icon: '⇆', label: 'ငွေ Transfer', active: (p) => p === '/wallet-transfer', visible: notAdmin },
+    { href: '#/wallet-requests', icon: '⇅', label: 'Wallet requests', active: (p) => p === '/wallet-requests', visible: notAdmin },
+    { href: '#/slip-cancel-requests', icon: '🗑', label: 'Slip delete requests', active: (p) => p === '/slip-cancel-requests', visible: notAdmin },
     { href: '#/profile', icon: '⚙', label: 'Profile', active: (p) => p === '/profile' },
   ],
 });
