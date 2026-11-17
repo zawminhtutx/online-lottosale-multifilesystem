@@ -56,7 +56,9 @@ app.use((req, res, next) => {
   if (isAllowedOrigin(req.get('origin'), req)) return next();
   res.status(403).json({ error: 'Origin not allowed' });
 });
-app.use(express.json({ limit: '200kb' }));
+// A master logo is a data URL. 200kb dropped a normal photo (the file check allowed 350 KB,
+// and base64 is larger than the file), so the save never stored a picture for the master list.
+app.use(express.json({ limit: '1mb' }));
 
 const publicDir = (name) => express.static(fileURLToPath(new URL(`../public/${name}`, import.meta.url)));
 app.use('/common', publicDir('common'));

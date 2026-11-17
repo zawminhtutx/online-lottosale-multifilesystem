@@ -22,6 +22,8 @@ class Api {
   static const _serverKey = 'online_server_url';
   static const _tokenKey = 'online_token';
   static const _rememberKey = 'online_remember_username'; // set while "Remember me" is on
+  static const _brandUserKey = 'online_brand_user';
+  static const _brandLogoKey = 'online_brand_logo';
   static const defaultServer = String.fromEnvironment('API_URL', defaultValue: 'https://online-lottosale-multifilesystem.onrender.com');
   // Addresses saved by older builds that talked to a computer on the desk. Those now follow the online server.
   static const _localDefaults = {'http://10.0.2.2:3000', 'http://127.0.0.1:3000', 'http://localhost:3000'};
@@ -30,6 +32,9 @@ class Api {
   String? _token;
   // Username to fill in on the login screen ("Remember me" was on at the last sign-in).
   String rememberedUsername = '';
+  // Last master logo shown for a username, so the next visit can paint it before the server answers.
+  String brandUser = '';
+  String? brandLogo;
   // Called when the server rejects the token (expired / account closed) so the app can sign out.
   void Function()? onUnauthorized;
 
@@ -43,6 +48,20 @@ class Api {
     if (_server != saved) await prefs.setString(_serverKey, _server);
     _token = prefs.getString(_tokenKey);
     rememberedUsername = prefs.getString(_rememberKey) ?? '';
+    brandUser = prefs.getString(_brandUserKey) ?? '';
+    brandLogo = prefs.getString(_brandLogoKey);
+  }
+
+  Future<void> saveBrandLogo(String username, String? logo) async {
+    brandUser = username;
+    brandLogo = (logo == null || logo.isEmpty) ? null : logo;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_brandUserKey, username);
+    if (brandLogo == null) {
+      await prefs.remove(_brandLogoKey);
+    } else {
+      await prefs.setString(_brandLogoKey, brandLogo!);
+    }
   }
 
   Future<void> setServer(String url) async {

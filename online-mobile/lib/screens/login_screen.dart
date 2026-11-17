@@ -42,8 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _u.text = Api.instance.rememberedUsername;
+    masterLogo = _cachedLogo(_u.text);
     _u.addListener(_scheduleLogo);
-    _scheduleLogo();
+    if (_u.text.trim().isNotEmpty) _loadLogo();
   }
   String? error;
 
@@ -56,9 +57,20 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  String? _cachedLogo(String username) {
+    final name = username.trim();
+    if (name.isEmpty || Api.instance.brandUser != name) return null;
+    final logo = Api.instance.brandLogo;
+    return (logo == null || logo.isEmpty) ? null : logo;
+  }
+
   void _scheduleLogo() {
     _logoTimer?.cancel();
-    _logoTimer = Timer(const Duration(milliseconds: 350), _loadLogo);
+    _logoTimer = Timer(const Duration(milliseconds: 250), () {
+      final cached = _cachedLogo(_u.text);
+      if (mounted && masterLogo != cached) setState(() => masterLogo = cached);
+      _loadLogo();
+    });
   }
 
   Future<void> _loadLogo() async {
@@ -69,10 +81,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     try {
       final r = await Api.instance.get('/auth/brand?username=${Uri.encodeQueryComponent(name)}');
-      final logo = r is Map ? r['logo']?.toString() : null;
-      if (mounted && _u.text.trim() == name) setState(() => masterLogo = (logo == null || logo.isEmpty) ? null : logo);
+      final raw = r is Map ? r['logo']?.toString() : null;
+      final logo = (raw == null || raw.isEmpty) ? null : raw;
+      await Api.instance.saveBrandLogo(name, logo);
+      if (mounted && _u.text.trim() == name) setState(() => masterLogo = logo);
     } catch (_) {
-      if (mounted && _u.text.trim() == name) setState(() => masterLogo = null);
+      // Keep the saved picture when the server cannot be reached.
     }
   }
 

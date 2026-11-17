@@ -1,6 +1,7 @@
 // Account management cards shared by the admin and agent "account detail" pages.
 import { api } from './api.js';
 import { betTypeName, t } from './i18n.js';
+import { fitLogo } from './logo.js';
 import { badge, balanceCell, busy, checkbox, dateTime, field, formValues, h, input, money, select, table, toast } from './ui.js';
 
 // prizeSets: pass the list to allow changing the prize set (admin only); omit to hide it.
@@ -30,26 +31,18 @@ export function profileCard(user, { prizeSets, canSetUnlimited = false, isSelf =
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = formValues(form);
-    const payload = { name: v.name.trim() };
-    for (const key of ['name_mm', 'phone', 'phone2', 'address']) payload[key] = v[key].trim() || null;
-    if (user.role === 'master') payload.master_name = v.master_name.trim() || null;
-    if (user.role !== 'admin') payload.email = v.email.trim() || null;
-    if (user.role === 'master') {
-        const file = form.querySelector('input[name="logo"]')?.files?.[0];
-      if (file) {
-        if (file.size > 350000) throw new Error('Logo must be under 350 KB');
-        payload.logo = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => reject(new Error('Could not read the logo'));
-          reader.readAsDataURL(file);
-        });
-      }
-    }
-    if (!isSelf) payload.status = v.status;
-    if (!isSelf && prizeSets) payload.prize_set_id = Number(v.prize_set_id);
-    if (canSetUnlimited) payload.unlimited = v.unlimited === 'on';
-    await busy(save, () => api.patch(`/users/${user.id}`, payload)).then(() => { toast(t('Profile saved')); rerender(); }, () => {});
+    const file = user.role === 'master' ? form.querySelector('input[name="logo"]')?.files?.[0] : null;
+    await busy(save, async () => {
+      const payload = { name: v.name.trim() };
+      for (const key of ['name_mm', 'phone', 'phone2', 'address']) payload[key] = v[key].trim() || null;
+      if (user.role === 'master') payload.master_name = v.master_name.trim() || null;
+      if (user.role !== 'admin') payload.email = v.email.trim() || null;
+      if (file) payload.logo = await fitLogo(file);
+      if (!isSelf) payload.status = v.status;
+      if (!isSelf && prizeSets) payload.prize_set_id = Number(v.prize_set_id);
+      if (canSetUnlimited) payload.unlimited = v.unlimited === 'on';
+      await api.patch(`/users/${user.id}`, payload);
+    }).then(() => { toast(t('Profile saved')); rerender(); }, () => {});
   });
   return form;
 }

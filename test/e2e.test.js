@@ -1580,6 +1580,14 @@ test('admin opens masters only; a master opens its own tree', async () => {
   assert.equal(marked.status, 201, JSON.stringify(marked.body));
   const listed = (await call('GET', '/api/users?role=master', admin)).body.find((u) => u.username === 'masterlogo');
   assert.equal(listed.logo, 'data:image/png;base64,aaaa');
+  // A real photo's data URL is larger than the old 200 KB JSON limit. That rejection
+  // left the row without a logo, so the master list had nothing to show.
+  const big = `data:image/png;base64,${'a'.repeat(220_000)}`;
+  const savedBig = await call('PATCH', `/api/users/${listed.id}`, admin, { logo: big });
+  assert.equal(savedBig.status, 200, savedBig.body?.error ?? `status ${savedBig.status}`);
+  const listedBig = (await call('GET', '/api/users?role=master', admin)).body.find((u) => u.username === 'masterlogo');
+  assert.equal(listedBig.logo, big);
+  assert.equal((await call('PATCH', `/api/users/${listed.id}`, admin, { logo: 'data:image/png;base64,aaaa' })).status, 200);
   assert.equal((await call('GET', '/api/auth/brand?username=masterlogo')).body.logo, 'data:image/png;base64,aaaa');
   assert.equal((await call('GET', '/api/auth/brand?username=master9')).body.logo, null);
   assert.equal((await call('GET', '/api/auth/brand?username=admin')).body.logo, null);

@@ -2,6 +2,7 @@ import { api, cached, session } from '/common/js/api.js';
 import { t } from '/common/js/i18n.js';
 import { badge, balanceCell, busy, checkbox, confirmDialog, dateTime, field, h, input, mount, openModal, pageHeader, select, table, tabs, toast } from '/common/js/ui.js';
 import { unlimitedCheckbox } from '/common/js/account-cards.js';
+import { fitLogo } from '/common/js/logo.js';
 
 // Account lists of the admin dashboard. The admin sees every role (masters, agents, users, admins)
 // and opens any of them — but an agent and a user never hang straight under the admin, so it picks
@@ -139,15 +140,6 @@ function closeMasterButton(u, rerender) {
     h('button', { type: 'button', class: open ? 'btn btn-sm btn-danger' : 'btn btn-sm', onclick: set }, open ? t('Close') : t('Reopen')));
 }
 
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Could not read the logo'));
-    reader.readAsDataURL(file);
-  });
-}
-
 function ledgerMailToggle(u, rerender) {
   const on = !!u.ledger_mail;
   const set = (value) => async (e) => {
@@ -219,10 +211,7 @@ function createAccount(role, parents, prizeSets, defaultParent, byDownline, must
         if (!v.master_name?.trim()) throw new Error('Master name is required');
         payload.master_name = v.master_name.trim();
         const file = form.querySelector('input[name="logo"]')?.files?.[0];
-        if (file) {
-          if (file.size > 350000) throw new Error('Logo must be under 350 KB');
-          payload.logo = await fileToDataUrl(file);
-        }
+        if (file) payload.logo = await fitLogo(file);
       }
       if (v.email?.trim()) payload.email = v.email.trim();
       if (role === 'agent' || role === 'user') payload.ledger_mail = v.ledger_mail === 'on';
