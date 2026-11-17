@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // Client for the OnlineLotto API (the same Express server as the admin web dashboard). Admins
 // sign in with their OnlineLotto admin account and every call carries its JWT. The server address defaults to --dart-define=API_URL=... at build time and
-// can be changed on the login screen (⚙), e.g. for a phone on the shop's Wi-Fi.
+// can be changed on the login screen (⚙). The built-in address is the online server.
 class ApiException implements Exception {
   final String message;
   final int status;
@@ -22,7 +22,9 @@ class Api {
   static const _serverKey = 'online_server_url';
   static const _tokenKey = 'online_token';
   static const _rememberKey = 'online_remember_username'; // set while "Remember me" is on
-  static const defaultServer = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:3000');
+  static const defaultServer = String.fromEnvironment('API_URL', defaultValue: 'https://online-lottosale-multifilesystem.onrender.com');
+  // Addresses saved by older builds that talked to a computer on the desk. Those now follow the online server.
+  static const _localDefaults = {'http://10.0.2.2:3000', 'http://127.0.0.1:3000', 'http://localhost:3000'};
 
   String _server = defaultServer;
   String? _token;
@@ -36,7 +38,9 @@ class Api {
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    _server = prefs.getString(_serverKey) ?? defaultServer;
+    final saved = prefs.getString(_serverKey);
+    _server = (saved == null || _localDefaults.contains(saved)) ? defaultServer : saved;
+    if (_server != saved) await prefs.setString(_serverKey, _server);
     _token = prefs.getString(_tokenKey);
     rememberedUsername = prefs.getString(_rememberKey) ?? '';
   }

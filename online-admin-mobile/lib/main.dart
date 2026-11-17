@@ -28,7 +28,7 @@ class AdminApp extends StatelessWidget {
     final look = lookFor(session.user == null ? 'admin' : session.role);
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'Lotto Admin',
+      title: 'Admin Lotto',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: look.seed),

@@ -5,11 +5,27 @@ import { z } from 'zod';
 import { db, one } from '../db.js';
 import { config } from '../config.js';
 import { authenticate, PUBLIC_USER_COLUMNS, signToken } from '../auth.js';
+import { houseMasterId } from '../books.js';
 import { HttpError, badRequest } from '../errors.js';
 
 export const router = Router();
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.loginRateLimit, standardHeaders: 'draft-8', legacyHeaders: false });
+const brandLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false });
+
+// Login screens ask for the logo of the master above this username. Unknown names, the admin, and
+// a master with no picture all come back as null so the app keeps its own default logo.
+router.get('/brand', brandLimiter, async (req, res) => {
+  const username = z.object({ username: z.string().trim().max(60).optional() }).parse(req.query).username ?? '';
+  if (!username) return res.json({ logo: null });
+  const user = await one(db, 'SELECT id, role FROM users WHERE username = ?', [username]);
+  if (!user) return res.json({ logo: null });
+  const masterId = await houseMasterId(db, user);
+  if (!masterId) return res.json({ logo: null });
+  const master = await one(db, 'SELECT logo FROM users WHERE id = ?', [masterId]);
+  const logo = master?.logo ? String(master.logo) : '';
+  res.json({ logo: logo || null });
+});
 
 router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = z.object({ username: z.string().min(1), password: z.string().min(1) }).parse(req.body);

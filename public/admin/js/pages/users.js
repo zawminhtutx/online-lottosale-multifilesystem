@@ -87,7 +87,7 @@ export default async function users(main, { query, rerender }) {
 
   const titles = { master: t('Masters'), agent: t('Agents'), user: t('Users'), admin: t('Admins') };
   const subtitles = {
-    master: t('Masters run their own agents and users, with their own balance'),
+    master: t('Masters fill their agents and users directly, without using their own balance'),
     agent: t('Agents sell to their own users and manage their wallets'),
     user: t('Betting accounts'),
     admin: t('Accounts that run this dashboard'),

@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Client for the OnlineLotto API (the same Express server the online web app and the admin/agent
 // dashboards use). Online users sign in with their OnlineLotto account (role "user") and every
 // call carries its JWT. The server address defaults to --dart-define=API_URL=... at build time and
-// can be changed on the login screen (⚙), e.g. for a phone on the shop's Wi-Fi.
+// can be changed on the login screen (⚙). The built-in address is the online server.
 class ApiException implements Exception {
   final String message;
   final int status;

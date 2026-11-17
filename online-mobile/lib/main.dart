@@ -22,7 +22,7 @@ class OnlineLottoApp extends StatelessWidget {
     final session = context.watch<Session>();
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'Online Lotto',
+      title: 'Lotto',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // The whole app in Poppins Light 300 (bundled; see pubspec.yaml). Myanmar text uses the system font.

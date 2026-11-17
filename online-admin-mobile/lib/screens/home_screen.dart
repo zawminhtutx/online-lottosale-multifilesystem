@@ -30,7 +30,7 @@ class _Tile {
 }
 
 // Admin opens master accounts and nothing else. A master runs its own book and its own agents and
-// users. An agent sees only its own users. A master's and an agent's own balance is shown on top.
+// users. An agent sees only its own users.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -174,16 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ]),
           ),
           const SizedBox(height: 10),
-          // A master / an agent: its own balance as a wide card of its own (every deposit it makes
-          // comes out of it), the counts small underneath.
-          if (session.isDownline) ...[
-            _BalanceCard(
-              amount: count(session.role, 'balance'),
-              unlimited: asInt(session.user?['unlimited']) == 1,
-              money: session.money,
-            ),
-            const SizedBox(height: 8),
-          ],
           Row(children: [
             if (session.isAdmin)
               _Stat('Masters', '${count('master', 'count')}', sub: '${session.money(count('master', 'balance'))} Ks')
@@ -220,7 +210,7 @@ class _Stat extends StatelessWidget {
   final String label;
   final String value;
   final String? sub;
-  final bool small; // the master's dashboard: compact cards under its wide balance card
+  final bool small; // a master / agent dashboard: the count cards sit in one row
   const _Stat(this.label, this.value, {this.sub, this.small = false});
 
   @override
@@ -234,45 +224,6 @@ class _Stat extends StatelessWidget {
             if (sub != null) FittedBox(child: Text(sub!, style: TextStyle(color: Colors.grey[600], fontSize: small ? 10.5 : 11.5))),
           ]),
         ),
-      );
-}
-
-// The master's own balance, full width and large.
-class _BalanceCard extends StatelessWidget {
-  final int amount;
-  final bool unlimited;
-  final String Function(num) money;
-  const _BalanceCard({required this.amount, required this.unlimited, required this.money});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFC7D2FE), width: 1.5),
-        ),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFF4338CA).withValues(alpha: .1), shape: BoxShape.circle),
-            child: const Icon(Icons.account_balance_wallet, color: Color(0xFF4338CA), size: 30),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('ကိုယ်ပိုင် လက်ကျန်', style: TextStyle(color: Colors.grey[700], fontSize: 13.5, fontWeight: FontWeight.w600)),
-              FittedBox(
-                alignment: Alignment.centerLeft,
-                fit: BoxFit.scaleDown,
-                child: Text('${money(amount)} ကျပ်',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 30, color: amount < 0 ? const Color(0xFFDC2626) : const Color(0xFF111827))),
-              ),
-              if (unlimited) Text('∞ အကန့်အသတ်မဲ့ Wallet', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-            ]),
-          ),
-        ]),
       );
 }
 

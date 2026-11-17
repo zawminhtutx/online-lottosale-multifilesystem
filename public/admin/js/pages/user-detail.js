@@ -26,11 +26,12 @@ export default async function userDetail(main, { params, rerender }) {
   // အကျွံများသိမ်း: the admin turns it on for a master; a master turns it on for an agent.
   const canSetSaleOver = !isSelf && ((byAdmin && user.role === 'master') || (viewer?.role === 'master' && user.role === 'agent'));
   const canSetHotEdit = byAdmin && !isSelf && user.role === 'master';
-  // A master / an agent hands over its own money (see services/wallet.js); the admin's deposits are
-  // new money.
-  const walletHint = !byAdmin && !isSelf && (viewer.unlimited
-    ? t('You have an unlimited wallet: you can deposit even without balance ({amount} Ks now).', { amount: money(viewer.balance) })
-    : t('Deposits come from your balance ({amount} Ks); withdrawals go back to it.', { amount: money(viewer.balance) }));
+  // A master fills agent and user balances directly. An agent hands over its own money.
+  const walletHint = !byAdmin && !isSelf && (viewer.role === 'master'
+    ? t('Deposits and withdrawals do not use your own balance.')
+    : viewer.unlimited
+      ? t('You have an unlimited wallet: you can deposit even without balance ({amount} Ks now).', { amount: money(viewer.balance) })
+      : t('Deposits come from your balance ({amount} Ks); withdrawals go back to it.', { amount: money(viewer.balance) }));
   activateNav(params[0] ? `#/users?role=${user.role}` : '#/profile');
 
   mount(main,

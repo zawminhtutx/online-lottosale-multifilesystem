@@ -816,10 +816,11 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                     '${session.money(asInt(u['balance']))} ကျပ်${asInt(u['unlimited']) == 1 ? '  ∞' : ''}',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: asInt(u['balance']) < 0 ? const Color(0xFFDC2626) : null),
                   ),
-                  // A master hands over its own money (the server takes it from its balance).
                   if (session.isDownline && !isSelf)
                     Text(
-                      'ငွေသွင်းလျှင် ကိုယ်ပိုင်လက်ကျန်မှ နုတ်မည်၊ ငွေထုတ်လျှင် ကိုယ်ပိုင်လက်ကျန်ထဲ ပြန်ဝင်မည်',
+                      session.isMaster
+                          ? 'ငွေသွင်း / ငွေထုတ် သည် ကိုယ်ပိုင်လက်ကျန်ကို မထိပါ'
+                          : 'ငွေသွင်းလျှင် ကိုယ်ပိုင်လက်ကျန်မှ နုတ်မည်၊ ငွေထုတ်လျှင် ကိုယ်ပိုင်လက်ကျန်ထဲ ပြန်ဝင်မည်',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   const SizedBox(height: 10),

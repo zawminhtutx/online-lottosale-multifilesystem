@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.14+15
+version: 1.0.16+17
 
 environment:
   sdk: ^3.12.0-295.0.dev
@@ -133,18 +133,16 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# App icon: assets/icon/icon.png + icon_foreground.png, cut from assets/icon/logo.jpg (user logo: Lotto): the
-# glowing bubble, cut out round on the tile's dark navy. Regenerate with `dart run flutter_launcher_icons`.
+# App icon is assets/icon/logo.jpg (the blue Lotto bubble). Regenerate with `dart run flutter_launcher_icons`.
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#010B20" # the logo tile's dark navy, behind the foreground
-  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
-  # The foreground PNG already sits the bubble in the visible 2/3 of the layer: no extra inset.
+  image_path: "assets/icon/logo.jpg"
+  adaptive_icon_background: "#0A6BFF"
+  adaptive_icon_foreground: "assets/icon/logo.jpg"
   adaptive_icon_foreground_inset: 0
   web:
     generate: true
-    image_path: "assets/icon/icon.png"
-    background_color: "#6D28D9"
-    theme_color: "#7C3AED"
+    image_path: "assets/icon/logo.jpg"
+    background_color: "#0A6BFF"
+    theme_color: "#0A6BFF"

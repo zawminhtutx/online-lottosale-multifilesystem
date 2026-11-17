@@ -1,10 +1,10 @@
-// Deposit / withdraw requests (ငွေဖြည့် / ငွေထုတ် / ငွေလက်ခံ). They run up the account chain: a user asks its
-// agent, an agent asks its master, a master asks the admin. The master / agent above it — or any
-// master / agent further above — approves, moving the money exactly like a manual deposit /
-// withdraw, or rejects.
-// The admin decides its own masters' requests only (the accounts its cash moves in and out of; see
-// routes/wallet.js). An agent's or a user's request is the master's / agent's above it to decide —
-// the admin only reads those, as history.
+// Deposit / withdraw requests (ငွေဖြည့် / ငွေထုတ် / ငွေလက်ခံ). They run up one hop: a user asks its
+// parent, an agent asks its master, a master asks the admin. A user created directly under a master
+// asks that master. A user under an agent asks that agent only — it cannot skip the agent and ask
+// the master. The account it was sent to, or a master / agent above that account, approves.
+// Approving as a master credits or debits the account below and does not use the master's own
+// balance. An agent still pays out of its own balance. The admin decides its own masters' requests
+// only (the accounts its cash moves in and out of; see routes/wallet.js).
 import { Router } from 'express';
 import { z } from 'zod';
 import { all, db, one, withTransaction } from '../db.js';
@@ -28,6 +28,12 @@ function assertDecidable(actor, target) {
   if (actor.role === 'admin' && target.role !== 'master') {
     throw forbidden('Agent / User ၏ ငွေသွင်း / ငွေထုတ် တောင်းဆိုမှုကို သက်ဆိုင်ရာ Master / Agent က အတည်ပြုရပါမည် — Admin မှာ မှတ်တမ်းသာ ကြည့်နိုင်သည်');
   }
+}
+
+// The decider is the account the request was sent to, or a master / agent above that account.
+async function assertRecipient(client, actor, request) {
+  if (request.agent_id == null || actor.role === 'admin') return;
+  if (!(await canAccess(client, actor, { id: request.agent_id }))) throw notFound('Request not found');
 }
 
 const loadRequest = async (client, requestId) => {
@@ -56,9 +62,9 @@ router.get('/pending-count', requireRole(...UPLINE_ROLES), async (req, res) => {
   res.json(await one(db, `SELECT COUNT(*) AS count FROM wallet_requests r WHERE r.status = 'pending' AND ${scope.sql}`, scope.args));
 });
 
-// Where to send money (ငွေဖြည့်): the KPay / WavePay numbers of the account the caller hangs under —
-// a user sees its agent's numbers (or its master's / the admin's when it hangs there directly), an
-// agent its master's, a master the admin's. null when that account has set none.
+// Where to send money (ငွေဖြည့်): the KPay / WavePay numbers of the account the caller hangs under.
+// A user under an agent sees that agent. A user created directly under a master sees that master.
+// An agent sees its master, a master the admin. null when that account has set none.
 router.get('/pay-to', requireRole('master', 'agent', 'user'), async (req, res) => {
   const up = req.user.parent_id
     ? await one(db, 'SELECT username, name, role, kpay_no, kpay_name, wave_no, wave_name FROM users WHERE id = ?', [req.user.parent_id])
@@ -67,7 +73,7 @@ router.get('/pay-to', requireRole('master', 'agent', 'user'), async (req, res) =
 });
 
 // Any account with an upline may ask it for money: a user, an agent, a master. (The admin has
-// none — it is where money enters the system and moves it directly.)
+// none — it is where money enters a master and moves it directly.)
 router.post('/', requireRole('master', 'agent', 'user'), async (req, res) => {
   if (!req.user.parent_id) throw badRequest('Your account has no upline to ask');
   const body = z
@@ -81,6 +87,8 @@ router.post('/', requireRole('master', 'agent', 'user'), async (req, res) => {
       note: z.string().trim().max(255).optional(),
     })
     .parse(req.body);
+  // One hop only: the parent. A user under a master therefore asks the master; a user under an
+  // agent asks the agent and cannot name the master instead.
   if (body.type === 'withdraw') {
     if (!body.account_no) throw badRequest('Enter the account to receive the money');
     // Pending withdrawals count against the balance, so a user can't ask for the same money twice.
@@ -111,15 +119,15 @@ router.post('/:id/cancel', requireRole('master', 'agent', 'user'), async (req, r
   res.json(await loadRequest(db, request.id));
 });
 
-// Approve: moves the money (a master / agent out of or back into its own balance; the admin cash
-// into or out of the system, for a master's own request). Any master / agent above the asking
-// account may approve, not only the upline it was sent to.
+// Approve: moves the money. A master fills the account below without using its own balance. An
+// agent pays out of its own balance. The admin's cash moves in and out of a master's request.
 router.post('/:id/approve', requireRole(...UPLINE_ROLES), async (req, res) => {
   const requestId = id.parse(req.params.id);
   await withTransaction(async (tx) => {
     const request = await loadRequest(tx, requestId);
     const target = await one(tx, 'SELECT id, parent_id, role, status FROM users WHERE id = ?', [request.user_id]);
     if (target.id === req.user.id || !(await canAccess(tx, req.user, target))) throw notFound('Request not found');
+    await assertRecipient(tx, req.user, request);
     assertDecidable(req.user, target);
     if (request.status !== 'pending') throw badRequest(`Request is already ${request.status}`);
     const note = [request.type === 'deposit' ? 'ငွေဖြည့်' : 'ငွေထုတ်', request.method, request.txn_ref || request.account_no]
@@ -144,6 +152,7 @@ router.post('/:id/reject', requireRole(...UPLINE_ROLES), async (req, res) => {
   const request = await loadRequest(db, id.parse(req.params.id));
   const target = await one(db, 'SELECT id, parent_id, role FROM users WHERE id = ?', [request.user_id]);
   if (target.id === req.user.id || !(await canAccess(db, req.user, target))) throw notFound('Request not found');
+  await assertRecipient(db, req.user, request);
   assertDecidable(req.user, target);
   if (request.status !== 'pending') throw badRequest(`Request is already ${request.status}`);
   await db.execute({

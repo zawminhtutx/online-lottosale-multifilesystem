@@ -1278,30 +1278,35 @@ test('master level: its own tree of accounts, money and slips; the term stays wi
   const user1 = (await call('GET', '/api/users?role=user', admin)).body.find((u) => u.username === 'user1');
   assert.equal((await call('GET', `/api/users/${user1.id}`, master)).status, 404);
 
-  // --- money down the chain, one hop at a time ------------------------------
-  // The admin is where money enters: a plain credit, nothing is taken from it.
+  // --- money down the chain -------------------------------------------------
+  // The admin is where money enters a master: a plain credit, nothing is taken from the admin.
   assert.equal((await call('POST', '/api/wallet/deposit', admin, { user_id: m.body.id, amount: 100000 })).body.balance, 100000);
-  // A master hands over its own money, so its balance drops by what it gives.
+  // A master fills an agent directly. The master's own balance stays put.
   assert.equal((await call('POST', '/api/wallet/deposit', master, { user_id: ag.body.id, amount: 40000 })).body.balance, 40000);
-  assert.equal(await bal(master), 60000);
+  assert.equal(await bal(master), 100000);
+  // An agent still hands over its own balance.
   assert.equal((await call('POST', '/api/wallet/deposit', magent, { user_id: deep.body.id, amount: 15000 })).body.balance, 15000);
   assert.equal(await bal(magent), 25000);
-  // More than it holds is refused; the account is not unlimited.
-  assert.equal((await call('POST', '/api/wallet/deposit', master, { user_id: ag.body.id, amount: 999999 })).status, 400);
+  // More than the master holds is still credited, then taken back so the chain below is unchanged.
+  assert.equal((await call('POST', '/api/wallet/deposit', master, { user_id: ag.body.id, amount: 100000 })).status, 200);
+  assert.equal(await bal(master), 100000);
+  assert.equal((await call('POST', '/api/wallet/withdraw', master, { user_id: ag.body.id, amount: 100000 })).body.balance, 25000);
+  assert.equal(await bal(master), 100000);
   // Nobody pays themselves, and nobody reaches outside their own tree.
   assert.equal((await call('POST', '/api/wallet/deposit', master, { user_id: m.body.id, amount: 1 })).status, 403);
   assert.equal((await call('POST', '/api/wallet/deposit', magent, { user_id: m.body.id, amount: 1 })).status, 404);
   assert.equal((await call('POST', '/api/wallet/deposit', master, { user_id: user1.id, amount: 1 })).status, 404);
 
-  // Withdraw pulls it back up the same way.
+  // An agent pulls a user's money back into its own balance. A master takes an agent's money off
+  // and does not keep it.
   assert.equal((await call('POST', '/api/wallet/withdraw', magent, { user_id: deep.body.id, amount: 5000 })).body.balance, 10000);
   assert.equal(await bal(magent), 30000);
   assert.equal((await call('POST', '/api/wallet/withdraw', master, { user_id: ag.body.id, amount: 30000 })).body.balance, 0);
-  assert.equal(await bal(master), 90000);
-  // Both sides of every hop are in the ledger, so the balances still add up to the transactions.
+  assert.equal(await bal(master), 100000);
+  // The agent's own rows still add up to its balance. The 100,000 round trip is in there too.
   const tx = (await call('GET', `/api/wallet/transactions?user_id=${ag.body.id}`, master)).body;
-  assert.equal(tx.filter((t) => t.type === 'transfer_in').length, 2);
-  assert.equal(tx.filter((t) => t.type === 'transfer_out').length, 2);
+  assert.equal(tx.filter((t) => t.type === 'transfer_in').length, 3);
+  assert.equal(tx.filter((t) => t.type === 'transfer_out').length, 3);
   assert.equal(tx[0].balance_after, 0);
   assert.equal(tx.reduce((sum, t) => sum + t.amount, 0), 0);
 
@@ -1311,20 +1316,20 @@ test('master level: its own tree of accounts, money and slips; the term stays wi
   assert.equal((await call('GET', '/api/wallet-requests/pay-to', magent)).body.kpay_no, '09555');
   assert.equal((await call('GET', '/api/wallet-requests/pay-to', master)).body.kpay_no, '09111'); // the admin's
 
-  // An agent asks its master, which pays out of its own balance when it approves.
+  // An agent asks its master. Approving credits the agent and does not spend the master's balance.
   const ask = await call('POST', '/api/wallet-requests', magent, { type: 'deposit', amount: 20000, method: 'KPay', txn_ref: 'TX1' });
   assert.equal(ask.status, 201, JSON.stringify(ask.body));
   assert.equal(ask.body.agent_id, m.body.id); // snapshot of the upline asked
   assert.equal((await call('GET', '/api/wallet-requests/pending-count', master)).body.count, 1);
   assert.equal((await call('POST', `/api/wallet-requests/${ask.body.id}/approve`, master)).body.status, 'approved');
   assert.equal(await bal(magent), 20000);
-  assert.equal(await bal(master), 70000);
+  assert.equal(await bal(master), 100000);
 
   // A master asks the admin, which credits it — money entering the system.
   const mAsk = await call('POST', '/api/wallet-requests', master, { type: 'deposit', amount: 5000, method: 'Cash' });
   assert.equal(mAsk.status, 201, JSON.stringify(mAsk.body));
   assert.equal((await call('POST', `/api/wallet-requests/${mAsk.body.id}/approve`, admin)).body.status, 'approved');
-  assert.equal(await bal(master), 75000);
+  assert.equal(await bal(master), 105000);
   assert.equal((await call('POST', '/api/wallet-requests', admin, { type: 'deposit', amount: 1, method: 'Cash' })).status, 403); // no upline
 
   // Nobody approves their own request, nor one from another tree.
@@ -1334,7 +1339,34 @@ test('master level: its own tree of accounts, money and slips; the term stays wi
   assert.equal((await call('POST', `/api/wallet-requests/${ask2.body.id}/approve`, agent1)).status, 404);
   assert.equal((await call('POST', `/api/wallet-requests/${ask2.body.id}/approve`, master)).body.status, 'approved');
   assert.equal(await bal(magent), 19000);
-  assert.equal(await bal(master), 76000);
+  assert.equal(await bal(master), 105000);
+
+  // A user created straight under the master asks that master. Approving does not spend the master's balance.
+  const mdirect = await login('mdirect', 'xxxxxx');
+  assert.equal((await call('GET', '/api/wallet-requests/pay-to', mdirect)).body.role, 'master');
+  assert.equal((await call('GET', '/api/wallet-requests/pay-to', mdirect)).body.kpay_no, '09555');
+  const directAsk = await call('POST', '/api/wallet-requests', mdirect, { type: 'deposit', amount: 8000, method: 'KPay', txn_ref: 'DIR' });
+  assert.equal(directAsk.status, 201, JSON.stringify(directAsk.body));
+  assert.equal(directAsk.body.agent_id, m.body.id);
+  assert.equal((await call('POST', `/api/wallet-requests/${directAsk.body.id}/approve`, master)).body.status, 'approved');
+  assert.equal(await bal(mdirect), 8000);
+  assert.equal(await bal(master), 105000);
+  // The same account can be topped up and drawn down directly. The master's balance stays put.
+  assert.equal((await call('POST', '/api/wallet/withdraw', master, { user_id: direct.body.id, amount: 1000 })).body.balance, 7000);
+  assert.equal((await call('POST', '/api/wallet/deposit', master, { user_id: direct.body.id, amount: 1000 })).body.balance, 8000);
+  assert.equal(await bal(master), 105000);
+
+  // A user under an agent asks that agent. Naming the master does not change the recipient.
+  await call('PATCH', `/api/users/${ag.body.id}`, master, { kpay_no: '09666', kpay_name: 'Agent' });
+  const muserTok = await login('muser', 'xxxxxx');
+  const pay = (await call('GET', '/api/wallet-requests/pay-to', muserTok)).body;
+  assert.equal(pay.role, 'agent');
+  assert.equal(pay.kpay_no, '09666');
+  assert.equal(pay.master, undefined);
+  const normal = await call('POST', '/api/wallet-requests', muserTok, { type: 'deposit', amount: 1000, method: 'KPay', ask_master: true });
+  assert.equal(normal.status, 201, JSON.stringify(normal.body));
+  assert.equal(normal.body.agent_id, ag.body.id);
+  assert.equal((await call('POST', `/api/wallet-requests/${normal.body.id}/cancel`, muserTok)).body.status, 'cancelled');
 
   // --- the အပါတ်စဥ် and its break belong to the admin alone ----------------
   const folder = (await call('POST', '/api/term-folders', admin, { name: 'Master tests' })).body;
@@ -1548,10 +1580,21 @@ test('admin opens masters only; a master opens its own tree', async () => {
   assert.equal(marked.status, 201, JSON.stringify(marked.body));
   const listed = (await call('GET', '/api/users?role=master', admin)).body.find((u) => u.username === 'masterlogo');
   assert.equal(listed.logo, 'data:image/png;base64,aaaa');
+  assert.equal((await call('GET', '/api/auth/brand?username=masterlogo')).body.logo, 'data:image/png;base64,aaaa');
+  assert.equal((await call('GET', '/api/auth/brand?username=master9')).body.logo, null);
+  assert.equal((await call('GET', '/api/auth/brand?username=admin')).body.logo, null);
+  assert.equal((await call('GET', '/api/auth/brand?username=nobody-brand')).body.logo, null);
   assert.equal((await call('PATCH', `/api/users/${listed.id}`, admin, { status: 'suspended' })).body.status, 'suspended');
   assert.equal((await call('POST', '/api/auth/login', null, { username: 'masterlogo', password: 'xxxxxx' })).status, 403);
   assert.equal((await call('PATCH', `/api/users/${listed.id}`, admin, { status: 'active' })).body.status, 'active');
-  assert.ok(await login('masterlogo', 'xxxxxx'));
+  const house = await login('masterlogo', 'xxxxxx');
+  assert.ok(house);
+  const logoAgent = await call('POST', '/api/users', house, { username: 'logogent', password: 'xxxxxx', role: 'agent', name: 'Logo Agent' });
+  assert.equal(logoAgent.status, 201, JSON.stringify(logoAgent.body));
+  const logoUser = await call('POST', '/api/users', house, { username: 'logouser', password: 'xxxxxx', role: 'user', name: 'Logo User', parent_id: logoAgent.body.id });
+  assert.equal(logoUser.status, 201, JSON.stringify(logoUser.body));
+  assert.equal((await call('GET', '/api/auth/brand?username=logogent')).body.logo, 'data:image/png;base64,aaaa');
+  assert.equal((await call('GET', '/api/auth/brand?username=logouser')).body.logo, 'data:image/png;base64,aaaa');
   // A master / an agent still opens its own without naming anyone.
   assert.equal((await call('POST', '/api/users', master, { username: 'mown', password: 'xxxxxx', role: 'agent', name: 'Own' })).status, 201);
   assert.equal((await call('POST', '/api/users', await login('magent', 'xxxxxx'),
@@ -1763,22 +1806,22 @@ test('float transfer: masters squared back onto the money the admin handed them'
   assert.equal(again.moved, 0);
   assert.equal(again.masters[0].skipped, 'on_float');
 
-  // The master hands 1,000 down to its agent; the float is unchanged, so the top-up is 1,000.
+  // The master hands 1,000 to its agent without spending its own balance, so the admin's float
+  // does not move and there is nothing to square back onto the master.
   assert.equal((await call('POST', '/api/wallet/deposit', master, { user_id: magent.id, amount: 1000 })).status, 200);
-  assert.equal(await bal(master), float - 1000);
+  assert.equal(await bal(master), float);
   const v2 = await view();
   assert.equal(row(v2).float_amount, float);
-  assert.equal(row(v2).delta, 1000);
+  assert.equal(row(v2).delta, 0);
   const filled = (await call('POST', '/api/wallet/float-reset', admin, { user_ids: [m.id] })).body;
-  assert.equal(filled.deposited, 1000);
-  assert.equal(filled.withdrawn, 0);
+  assert.equal(filled.moved, 0);
   assert.equal(await bal(master), float);
 
-  // Money over the float is taken back: the master wins 2,500 from a cancelled hand-out.
+  // Taking 2,500 back off the agent does not credit the master.
   assert.equal((await call('POST', '/api/wallet/withdraw', master, { user_id: magent.id, amount: 2500 })).status, 200);
-  assert.equal(await bal(master), float + 2500);
+  assert.equal(await bal(master), float);
   const over = (await call('POST', '/api/wallet/float-reset', admin, { user_ids: [m.id] })).body;
-  assert.equal(over.withdrawn, 2500);
+  assert.equal(over.moved, 0);
   assert.equal(await bal(master), float);
 
   // A further ငွေသွင်း by the admin raises the float with it.
@@ -1791,8 +1834,8 @@ test('float transfer: masters squared back onto the money the admin handed them'
   assert.ok(!(await view()).masters.some((x) => x.id === user1.id));
   assert.equal((await call('POST', '/api/wallet/float-reset', admin, { user_ids: [user1.id] })).status, 400);
 
-  // A master squares its own agents and users up the same way, out of its own balance; an agent
-  // does it for its users. Each level sees only the accounts straight under it.
+  // A master squares its own agents and users without spending its balance; an agent does it for
+  // its users out of its own balance. Each level sees only the accounts straight under it.
   const muser = all.find((u) => u.username === 'muser');
   await call('POST', '/api/wallet/deposit', admin, { user_id: m.id, amount: 1000000 }); // room to top up
   const mView = async () => (await call('GET', '/api/wallet/float-targets', master)).body;
@@ -1810,8 +1853,10 @@ test('float transfer: masters squared back onto the money the admin handed them'
   // What the agent then hands down comes off its balance, and the master tops exactly that back up.
   assert.equal((await call('POST', '/api/wallet/deposit', await login('magent', 'xxxxxx'), { user_id: muser.id, amount: 1000 })).status, 200);
   assert.equal(mRow(await mView()).delta, before + 1000);
+  const masterBal = await bal(master);
   const mDone = await call('POST', '/api/wallet/float-reset', master, { user_ids: [magent.id] });
   assert.equal(mDone.status, 200, JSON.stringify(mDone.body));
+  assert.equal(await bal(master), masterBal);
   assert.equal(mRow(await mView()).delta, 0);
   assert.equal(mRow(await mView()).balance, mRow(await mView()).float_amount);
 

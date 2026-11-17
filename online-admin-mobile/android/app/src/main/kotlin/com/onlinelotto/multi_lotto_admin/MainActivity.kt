@@ -1,4 +1,4 @@
-package com.onlinelotto.online_lotto_mobile
+package com.onlinelotto.multi_lotto_admin
 
 import io.flutter.embedding.android.FlutterActivity
 

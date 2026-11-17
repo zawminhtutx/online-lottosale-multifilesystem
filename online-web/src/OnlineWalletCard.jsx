@@ -61,7 +61,9 @@ export default function OnlineWalletCard() {
         {!!user.unlimited && <span className="badge purple" style={{ marginLeft: 8, fontSize: 13 }}>∞ အကန့်အသတ်မဲ့</span>}
       </div>
       {payTo && <PayTo payTo={payTo} />}
-      <p className="ol-muted" style={{ margin: '0 0 12px' }}>ငွေဖြည့် / ငွေထုတ် တောင်းဆိုပြီး သင့်အေးဂျင့် အတည်ပြုမှ လက်ကျန်ငွေ ပြောင်းပါမည်။</p>
+      <p className="ol-muted" style={{ margin: '0 0 12px' }}>
+        ငွေဖြည့် / ငွေထုတ် တောင်းဆိုပြီး {payTo?.role === 'master' ? 'Master' : 'Agent'} အတည်ပြုမှ လက်ကျန်ငွေ ပြောင်းပါမည်။
+      </p>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <button className={`btn ${tab === 'requests' ? '' : 'secondary'}`} onClick={() => setTab('requests')}>ငွေဖြည့်/ထုတ် တောင်းဆိုမှု</button>

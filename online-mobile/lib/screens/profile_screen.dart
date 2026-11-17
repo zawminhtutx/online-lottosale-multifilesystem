@@ -81,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => _RequestSheet(type: type),
     );
     if (sent == true) {
-      _snack(type == 'deposit' ? 'ငွေဖြည့် တောင်းဆိုပြီးပါပြီ — Agent အတည်ပြုရန် စောင့်ပါ' : 'ငွေထုတ် တောင်းဆိုပြီးပါပြီ — Agent အတည်ပြုရန် စောင့်ပါ', Colors.teal);
+      _snack(type == 'deposit' ? 'ငွေဖြည့် တောင်းဆိုပြီးပါပြီ — အတည်ပြုရန် စောင့်ပါ' : 'ငွေထုတ် တောင်းဆိုပြီးပါပြီ — အတည်ပြုရန် စောင့်ပါ', Colors.teal);
       setState(() => tab = 0);
       _load();
     }
@@ -400,9 +400,16 @@ class _RequestSheetState extends State<_RequestSheet> {
   String method = methods.first;
   bool busy = false;
   String? error;
-  Map<String, dynamic>? payTo; // KPay / WavePay of the agent (or admin) this user is under
+  Map<String, dynamic>? payTo; // KPay / WavePay of the parent: the agent, or the master when the user hangs there
 
   bool get deposit => widget.type == 'deposit';
+
+  String get uplineLabel {
+    final role = '${payTo?['role'] ?? ''}';
+    if (role == 'master') return 'Master';
+    if (role == 'agent') return 'Agent';
+    return 'အပေါ်အကောင့်';
+  }
 
   @override
   void initState() {
@@ -485,8 +492,8 @@ class _RequestSheetState extends State<_RequestSheet> {
           ]),
           Text(
             deposit
-                ? 'Agent ထံ ငွေလွှဲပြီးမှ ငွေလွှဲအမှတ်နှင့်တကွ တောင်းဆိုပါ။ Agent အတည်ပြုလျှင် လက်ကျန်ငွေ တိုးပါမည်။'
-                : 'Agent အတည်ပြုလျှင် လက်ကျန်ငွေမှ နုတ်ပြီး ပေးထားသော အကောင့်သို့ ငွေလွှဲပေးပါမည်။',
+                ? '$uplineLabel ထံ ငွေလွှဲပြီးမှ ငွေလွှဲအမှတ်နှင့်တကွ တောင်းဆိုပါ။ $uplineLabel အတည်ပြုလျှင် လက်ကျန်ငွေ တိုးပါမည်။'
+                : '$uplineLabel အတည်ပြုလျှင် လက်ကျန်ငွေမှ နုတ်ပြီး ပေးထားသော အကောင့်သို့ ငွေလွှဲပေးပါမည်။',
             style: TextStyle(color: Colors.grey[700], fontSize: 12.5),
           ),
           if (deposit && payTo != null)
@@ -495,7 +502,7 @@ class _RequestSheetState extends State<_RequestSheet> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFA7F3D0))),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('ဤနံပါတ်သို့ ငွေလွှဲပါ', style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
+                Text('ဤနံပါတ်သို့ ငွေလွှဲပါ · ${payTo!['username'] ?? uplineLabel}', style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
                 _payRow('KPay', payTo!['kpay_no'], payTo!['kpay_name'], 'KPay'),
                 _payRow('WavePay', payTo!['wave_no'], payTo!['wave_name'], 'WavePay'),
               ]),

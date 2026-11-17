@@ -31,29 +31,36 @@ export async function applyBalance(tx, userId, delta, type, extra = {}) {
   return row.balance;
 }
 
-// Money moves down the account chain one hop at a time: admin → master → agent → user. The admin
-// (superadmin) is the only place money enters or leaves the system — it credits and debits outright
-// ('deposit' / 'withdraw', cash in and out). A master or an agent hands over its own money instead:
-// the amount leaves the actor's balance and lands in the target's ('transfer_out' / 'transfer_in'),
-// so nothing is created on the way down and every balance still adds up to its transactions.
+// Money the admin puts on a master is a plain credit ('deposit' / 'withdraw'). A master fills its
+// agents and the users under it the same way: the target is credited or debited and the master's
+// own balance is not used, because the master puts that money in itself. An agent still hands over
+// its own balance ('transfer_out' / 'transfer_in'). The target's rows stay transfer_in / transfer_out
+// with the master as counterparty, so the master's float for that account still adds up.
 
 // Deposit into [target] by [actor] inside a transaction. Returns the target's new balance.
 export async function depositTo(tx, actor, target, amount, note, { floatReset = false } = {}) {
-  if (actor.role !== 'admin') {
-    // allowCredit: an unlimited master / agent may hand out money it does not hold yet (credit owed).
+  if (actor.role === 'agent') {
+    // allowCredit: an unlimited agent may hand out money it does not hold yet (credit owed).
     await applyBalance(tx, actor.id, -amount, 'transfer_out', { allowCredit: true, counterpartyId: target.id, createdBy: actor.id, note, floatReset });
+    return applyBalance(tx, target.id, amount, 'transfer_in', { counterpartyId: actor.id, createdBy: actor.id, note, floatReset });
+  }
+  if (actor.role === 'master') {
     return applyBalance(tx, target.id, amount, 'transfer_in', { counterpartyId: actor.id, createdBy: actor.id, note, floatReset });
   }
   return applyBalance(tx, target.id, amount, 'deposit', { counterpartyId: actor.id, createdBy: actor.id, note, floatReset });
 }
 
-// Withdraw from [target] by [actor]. A master / agent pulls it back into its own balance; the admin
-// takes it out of the system. Never below zero. Returns the target's new balance.
+// Withdraw from [target] by [actor]. An agent pulls it back into its own balance. A master takes it
+// off the target and does not keep it. The admin takes it out of the system. Never below zero.
+// Returns the target's new balance.
 export async function withdrawFrom(tx, actor, target, amount, note, { floatReset = false } = {}) {
-  if (actor.role !== 'admin') {
+  if (actor.role === 'agent') {
     const after = await applyBalance(tx, target.id, -amount, 'transfer_out', { counterpartyId: actor.id, createdBy: actor.id, note, floatReset });
     await applyBalance(tx, actor.id, amount, 'transfer_in', { counterpartyId: target.id, createdBy: actor.id, note, floatReset });
     return after;
+  }
+  if (actor.role === 'master') {
+    return applyBalance(tx, target.id, -amount, 'transfer_out', { counterpartyId: actor.id, createdBy: actor.id, note, floatReset });
   }
   return applyBalance(tx, target.id, -amount, 'withdraw', { counterpartyId: actor.id, createdBy: actor.id, note, floatReset });
 }

@@ -1,8 +1,23 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api.dart';
 import '../services/session.dart';
+
+ImageProvider? _masterLogo(String? logo) {
+  final s = logo ?? '';
+  if (s.startsWith('http://') || s.startsWith('https://')) return NetworkImage(s);
+  final comma = s.indexOf(',');
+  if (!s.startsWith('data:image') || comma < 0) return null;
+  try {
+    return MemoryImage(base64Decode(s.substring(comma + 1)));
+  } catch (_) {
+    return null;
+  }
+}
 
 // Admin / master / agent login (those three roles only). The ⚙ button sets which OnlineLotto server to use.
 class LoginScreen extends StatefulWidget {
@@ -18,19 +33,45 @@ class _LoginScreenState extends State<LoginScreen> {
   bool busy = false;
   bool obscure = true;
   bool remember = true; // Remember me
+  String? masterLogo;
+  Timer? _logoTimer;
 
   @override
   void initState() {
     super.initState();
     _u.text = Api.instance.rememberedUsername;
+    _u.addListener(_scheduleLogo);
+    _scheduleLogo();
   }
   String? error;
 
   @override
   void dispose() {
+    _logoTimer?.cancel();
+    _u.removeListener(_scheduleLogo);
     _u.dispose();
     _p.dispose();
     super.dispose();
+  }
+
+  void _scheduleLogo() {
+    _logoTimer?.cancel();
+    _logoTimer = Timer(const Duration(milliseconds: 350), _loadLogo);
+  }
+
+  Future<void> _loadLogo() async {
+    final name = _u.text.trim();
+    if (name.isEmpty) {
+      if (mounted) setState(() => masterLogo = null);
+      return;
+    }
+    try {
+      final r = await Api.instance.get('/auth/brand?username=${Uri.encodeQueryComponent(name)}');
+      final logo = r is Map ? r['logo']?.toString() : null;
+      if (mounted && _u.text.trim() == name) setState(() => masterLogo = (logo == null || logo.isEmpty) ? null : logo);
+    } catch (_) {
+      if (mounted && _u.text.trim() == name) setState(() => masterLogo = null);
+    }
   }
 
   Future<void> _submit() async {
@@ -52,6 +93,16 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Widget _logo() {
+    final provider = _masterLogo(masterLogo);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: provider == null
+          ? Image.asset('assets/icon/icon.png', width: 88, height: 88, fit: BoxFit.cover)
+          : Image(image: provider, width: 88, height: 88, fit: BoxFit.cover, errorBuilder: (_, _, _) => Image.asset('assets/icon/icon.png', width: 88, height: 88, fit: BoxFit.cover)),
+    );
+  }
+
   Future<void> _editServer() async {
     final ctrl = TextEditingController(text: Api.instance.server);
     final saved = await showDialog<bool>(
@@ -62,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: ctrl,
           keyboardType: TextInputType.url,
           autocorrect: false,
-          decoration: const InputDecoration(labelText: 'Server address', hintText: 'http://192.168.1.10:3000', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Server address', hintText: 'https://online-lottosale-multifilesystem.onrender.com', border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -90,16 +141,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(22),
-                        child: Image.asset('assets/icon/icon.png', width: 88, height: 88),
-                      ),
-                    ),
+                    Center(child: _logo()),
                     const SizedBox(height: 8),
-                    const Text('Lotto Admin', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 4),
-                    Text('Admin / Master / Agent အကောင့်ဖြင့် ဝင်ပါ', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
+                    const Text('Admin Lotto', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
                     const SizedBox(height: 24),
                     if (error != null)
                       Container(

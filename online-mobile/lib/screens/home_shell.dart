@@ -79,7 +79,7 @@ class _HomeShellState extends State<HomeShell> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
           children: [
-            const Text('Online Lotto', style: TextStyle(color: Color(0xFFE0E7FF), fontWeight: FontWeight.w700, fontSize: 30)),
+            const Text('Lotto', style: TextStyle(color: Color(0xFFE0E7FF), fontWeight: FontWeight.w700, fontSize: 30)),
             const SizedBox(height: 2),
             Text('အပါတ်စဥ်ရွေးပြီး ရောင်းပါ', style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 14)),
             const SizedBox(height: 18),

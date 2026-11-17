@@ -21,9 +21,9 @@ function assertAdminMovesMastersOnly(actor, target) {
   }
 }
 
-// ငွေဖြည့် / ငွေသွင်း into any account in the caller's downline, however deep. The admin credits it
-// (cash into the system, masters only); a master or an agent hands over its own balance (see
-// services/wallet.js).
+// ငွေဖြည့် / ငွေသွင်း into any account in the caller's downline, however deep. The admin credits a
+// master. A master credits its agents and users without spending its own balance. An agent hands
+// over its own balance (see services/wallet.js).
 router.post('/deposit', requireRole(...UPLINE_ROLES), async (req, res) => {
   const { user_id, amount, note } = moveSchema.parse(req.body);
   const balance = await withTransaction(async (tx) => {
@@ -34,8 +34,9 @@ router.post('/deposit', requireRole(...UPLINE_ROLES), async (req, res) => {
   res.json({ user_id, balance });
 });
 
-// ငွေထုတ်: takes it back out of an account in the caller's downline. The admin takes it out of the
-// system (masters only); a master or an agent pulls it back into its own balance. Never below zero.
+// ငွေထုတ်: takes it back out of an account in the caller's downline. The admin takes it out of a
+// master. A master takes it off an agent or user and does not keep it. An agent pulls it back into
+// its own balance. Never below zero.
 router.post('/withdraw', requireRole(...UPLINE_ROLES), async (req, res) => {
   const { user_id, amount, note } = moveSchema.parse(req.body);
   const balance = await withTransaction(async (tx) => {
@@ -78,7 +79,8 @@ router.get('/transactions', async (req, res) => {
 //
 // The float counts only what came from this very upline: the admin's cash in and out
 // ('deposit' / 'withdraw'), and for a master / agent what it handed down itself
-// ('transfer_in' / 'transfer_out' with the upline as the counterparty). The squaring moves are
+// ('transfer_in' / 'transfer_out' with the upline as the counterparty). A master's hand-out does
+// not move the master's own balance. The squaring moves are
 // written with float_reset = 1 and left out, so the float keeps the same figure however often it
 // is squared.
 
@@ -150,9 +152,9 @@ router.post('/float-reset', requireRole(...UPLINE_ROLES), async (req, res) => {
     if (!rows.length) throw badRequest('အကောင့် မတွေ့ပါ');
     const movable = rows.filter((r) => r.float_amount >= 0 && r.delta !== 0);
 
-    // A master / agent tops up out of its own balance, so the whole round is checked first — one
-    // account short would otherwise leave the rest half done.
-    if (req.user.role !== 'admin' && !req.user.unlimited) {
+    // An agent tops up out of its own balance, so the whole round is checked first — one account
+    // short would otherwise leave the rest half done. A master fills balances directly.
+    if (req.user.role === 'agent' && !req.user.unlimited) {
       const owed = movable.filter((r) => r.delta > 0).reduce((a, r) => a + r.delta, 0);
       const back = movable.filter((r) => r.delta < 0).reduce((a, r) => a - r.delta, 0);
       if (owed - back > req.user.balance) {
