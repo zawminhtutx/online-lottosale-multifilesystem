@@ -13,15 +13,18 @@ const GEMINI_KEY = 'gemini_api_key';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const PROMPT =
-  'You are a Myanmar 2D/3D lottery bet text parser.\n' +
-  'Convert the following Viber/Telegram message to standard bet format.\n\n' +
+  'You are a Myanmar 2D/3D lottery bet checker and formatter.\n' +
+  'Parse the following pasted message and output ONLY valid bet lines in standard format.\n\n' +
+  'Output format (one bet per line): [number_or_pattern] [units]\n' +
+  'Examples: "25 1000", "25R 500", "R 3000", "3P 200", "W 500"\n\n' +
   'Rules:\n' +
-  '- Each bet on its own line: [number_or_pattern] [units]\n' +
-  '- 2-digit numbers 00–99; "25R 500" for reverse; "R 3000" as R-header\n' +
-  '- Units are plain integers (remove ks/ကျပ် suffix)\n' +
+  '- 2-digit plain numbers: 00–99\n' +
+  '- Reverse: "25R" or "R 3000" (R-header for the numbers below it)\n' +
+  '- Patterns: R, RR, P, W, K, N, SP, MP, SS, SM, MS, MM, T, 1P–9P, 1B–9B, 12*, *12, 1*2\n' +
+  '- Units are plain integers (strip ks / ကျပ် / , separators)\n' +
   '- Myanmar digits ၀၁၂၃၄၅၆၇၈၉ → 0123456789\n' +
-  '- Strip greetings, dates, names, totals, section headers\n' +
-  '- Output ONLY the converted bet lines. No explanation.\n\n' +
+  '- Ignore greetings, dates, names, running totals, section headers\n' +
+  '- Output ONLY the bet lines. No explanation, no extra text.\n\n' +
   'Input:\n';
 
 // Admin: check whether a key is saved (returns {configured: bool}, never the key itself).

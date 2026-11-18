@@ -748,7 +748,7 @@ class _PatternKeypadSheetState extends State<PatternKeypadSheet> {
   // -> ထည့်မည် there adds everything to the cart with the ENTER sound, like အခွေ does (no
   // per-number break confirmation; Save still checks on the server). With wrong lines the table
   // lists them in red and ပြင်မည် goes back to the text box to fix them.
-  // "AI ဘာသာပြန်" sends the pasted text to Gemini first to normalise mixed/translated formats.
+  // "AI စစ်ဆေး" sends the pasted text to Gemini first to normalise mixed/translated formats.
   Future<void> _pasteBets() async {
     SoundService.instance.keyPress();
     final clip = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
@@ -800,7 +800,7 @@ class _PatternKeypadSheetState extends State<PatternKeypadSheet> {
                     icon: aiLoading
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.translate, size: 18),
-                    label: const Text('AI ဘာသာပြန်'),
+                    label: const Text('AI စစ်ဆေး'),
                     onPressed: aiLoading
                         ? null
                         : () async {
