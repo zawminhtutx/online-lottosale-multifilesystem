@@ -13,6 +13,7 @@ import wallet from './pages/wallet.js';
 import walletTransfer from '/common/js/pages/wallet-transfer.js';
 import commissions from '/common/js/pages/commissions.js';
 import sale from './pages/sale.js';
+import masterSettings from './pages/master-settings.js';
 
 // The admin only opens master accounts. A master runs its own book and its own tree: files, terms,
 // sale, prize rates, agents, users, commissions, wallets and slip-delete requests. An agent runs
@@ -49,6 +50,7 @@ startApp({
     [/^\/wallet-transfer$/, staffOnly(walletTransfer)],
     [/^\/wallet-requests$/, staffOnly(walletRequests)],
     [/^\/slip-cancel-requests$/, staffOnly(slipCancelRequests)],
+    [/^\/settings$/, bookOnly(masterSettings)],
   ],
   nav: [
     { href: '#/dashboard', icon: '◧', label: 'Dashboard', active: (p) => /^\/(dashboard)?$/.test(p) },
@@ -64,6 +66,7 @@ startApp({
     { href: '#/wallet-transfer', icon: '⇆', label: 'ငွေ Transfer', active: (p) => p === '/wallet-transfer', visible: notAdmin },
     { href: '#/wallet-requests', icon: '⇅', label: 'Wallet requests', active: (p) => p === '/wallet-requests', visible: notAdmin },
     { href: '#/slip-cancel-requests', icon: '🗑', label: 'Slip delete requests', active: (p) => p === '/slip-cancel-requests', visible: notAdmin },
-    { href: '#/profile', icon: '⚙', label: 'Profile', active: (p) => p === '/profile' },
+    { href: '#/settings', icon: '⚙', label: 'Settings', active: (p) => p === '/settings', visible: masterNav },
+    { href: '#/profile', icon: '👤', label: 'Profile', active: (p) => p === '/profile' },
   ],
 });
