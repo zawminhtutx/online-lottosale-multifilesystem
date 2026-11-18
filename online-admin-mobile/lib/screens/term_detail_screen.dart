@@ -22,7 +22,9 @@ import 'terms_screen.dart';
 // settle), စလစ်, စာရင်း.
 class TermDetailScreen extends StatefulWidget {
   final int termId;
-  const TermDetailScreen({super.key, required this.termId});
+  /// When true the screen skips the tab bar and shows only the purchase (အဝယ်) content.
+  final bool purchaseMode;
+  const TermDetailScreen({super.key, required this.termId, this.purchaseMode = false});
 
   @override
   State<TermDetailScreen> createState() => _TermDetailScreenState();
@@ -149,6 +151,18 @@ class _TermDetailScreenState extends State<TermDetailScreen> {
     // hot_edit may still edit hot numbers on a shared term it does not own.
     final book = manages(t);
     final hotEdit = book || (session.isMaster && asInt(session.user?['hot_edit']) == 1);
+
+    // Purchase-mode: skip the full tab UI and show only the purchase (အဝယ်) content.
+    if (widget.purchaseMode && book) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('အဝယ် — ${t['description']}', overflow: TextOverflow.ellipsis),
+          actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
+        ),
+        body: ContentWidth(child: _PurchaseTab(term: t, betTypes: betTypes)),
+      );
+    }
+
     final tabs = <(String, Widget)>[
       ('Live Ledger', LedgerTab(term: t, betTypes: betTypes)),
       // Setting tabs keep a readable width on tablets; the ledger, slips and report use it all.
@@ -160,11 +174,11 @@ class _TermDetailScreenState extends State<TermDetailScreen> {
       if (!session.isAgent) ('ထိုးသား Max Unit', ContentWidth(child: _UserLimitsTab(term: t, betTypes: betTypes, locked: locked))),
       if (book) ('ပိတ်ဂဏန်းများ', ContentWidth(child: _ClosedTab(term: t, betTypes: betTypes, locked: locked, onSaved: _load))),
       ('ဟော့ဂဏန်းများ', ContentWidth(child: _HotTab(term: t, betTypes: betTypes, locked: locked || !hotEdit, onSaved: _load))),
-      // အဝယ်: buy the units over the break (ကျွံ) from another dealer.
-      if (book) ('အဝယ်', ContentWidth(child: _PurchaseTab(term: t, betTypes: betTypes))),
+      // 'အဝယ်' moved to the dashboard button (PurchaseTermsScreen → purchaseMode:true).
       if (book) ('ပေါက်သီး', ContentWidth(child: _ResultsTab(term: t, onChanged: _load))),
-      ('စလစ်များ', SlipList(termId: asInt(t['id']), embedded: true)),
-      ('စာရင်းကြည့်', _SummaryTab(termId: asInt(t['id']), folderId: t['folder_id'] == null ? null : asInt(t['folder_id']), title: '${t['description']}')),
+      // 'စလစ်များ' and 'စာရင်းကြည့်' only shown to admin; master/agent use the dashboard tiles.
+      if (session.isAdmin) ('စလစ်များ', SlipList(termId: asInt(t['id']), embedded: true)),
+      if (session.isAdmin) ('စာရင်းကြည့်', _SummaryTab(termId: asInt(t['id']), folderId: t['folder_id'] == null ? null : asInt(t['folder_id']), title: '${t['description']}')),
     ];
     return DefaultTabController(
       length: tabs.length,

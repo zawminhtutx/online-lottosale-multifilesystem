@@ -9,6 +9,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { all, db, one, withTransaction } from '../db.js';
 import { UPLINE_ROLES, canAccess, requireRole, userScope } from '../auth.js';
+import { houseMasterId } from '../books.js';
+import { getMasterSettings } from './master-settings.js';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { depositTo, withdrawFrom } from '../services/wallet.js';
 import { broadcast } from '../live.js';
@@ -65,7 +67,20 @@ router.get('/pending-count', requireRole(...UPLINE_ROLES), async (req, res) => {
 // Where to send money (ငွေဖြည့်): the KPay / WavePay numbers of the account the caller hangs under.
 // A user under an agent sees that agent. A user created directly under a master sees that master.
 // An agent sees its master, a master the admin. null when that account has set none.
+// If the master has set user_wallet_display = 'master', users always see the master's wallet info
+// instead of their direct upline's.
 router.get('/pay-to', requireRole('master', 'agent', 'user'), async (req, res) => {
+  // For user accounts, check if the master prefers a single wallet display for all users.
+  if (req.user.role === 'user') {
+    const masterId = await houseMasterId(db, req.user);
+    if (masterId) {
+      const settings = await getMasterSettings(masterId);
+      if (settings.user_wallet_display === 'master') {
+        const master = await one(db, 'SELECT username, name, role, kpay_no, kpay_name, wave_no, wave_name FROM users WHERE id = ?', [masterId]);
+        return res.json(master && (master.kpay_no || master.wave_no) ? master : null);
+      }
+    }
+  }
   const up = req.user.parent_id
     ? await one(db, 'SELECT username, name, role, kpay_no, kpay_name, wave_no, wave_name FROM users WHERE id = ?', [req.user.parent_id])
     : null;

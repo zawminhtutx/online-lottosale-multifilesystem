@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api.dart';
+import '../services/company.dart';
 import '../services/format.dart';
+import '../services/printer_service.dart';
 import '../services/session.dart';
 import '../widgets/dash_style.dart';
 import '../widgets/responsive_layout.dart';
@@ -127,6 +129,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (ok == true && mounted) await context.read<Session>().logout();
   }
 
+  Future<void> _editShopName() async {
+    final s = await PrinterSettings.load();
+    if (!mounted) return;
+    final ctrl = TextEditingController(text: s.header);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ဆိုင်အမည် ပြောင်းရန်'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'ဆိုင်အမည်',
+            hintText: Company.name.isNotEmpty ? Company.name : 'Online Lotto',
+            helperText: 'မဖြည့်လျှင် ${Company.name.isNotEmpty ? Company.name : 'Online Lotto'} ကို သုံးမည်',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('မပြောင်းဘူး')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('သိမ်းမည်')),
+        ],
+      ),
+    );
+    final newHeader = ctrl.text.trim();
+    ctrl.dispose();
+    if (ok != true || !mounted) return;
+    await PrinterSettings(
+      name: s.name, mac: s.mac, paperMm: s.paperMm,
+      header: newHeader, footer: s.footer,
+      twoColumn: s.twoColumn, padLeft: s.padLeft, padRight: s.padRight,
+      textAlign: s.textAlign, printOnSave: s.printOnSave,
+    ).save();
+    if (mounted) setState(() {});
+  }
+
   void _snack(String message, Color color) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
@@ -203,6 +241,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 trailing: const Icon(Icons.chevron_right, color: Colors.white70),
                 onTap: _changePassword,
               ),
+              Divider(height: 1, color: Dash.glassBorder),
+              if ((u['master_settings'] as Map?)?['allow_name_edit'] == true) ...[
+                Divider(height: 1, color: Dash.glassBorder),
+                ListTile(
+                  leading: const Icon(Icons.store_outlined, color: Colors.white),
+                  title: const Text('ဆိုင်အမည် ပြောင်းရန်', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  subtitle: Text(Company.name.isNotEmpty ? Company.name : 'Online Lotto', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  trailing: const Icon(Icons.edit_outlined, color: Colors.white70),
+                  onTap: _editShopName,
+                ),
+              ],
               Divider(height: 1, color: Dash.glassBorder),
               ListTile(
                 leading: const Icon(Icons.print_outlined, color: Colors.white),

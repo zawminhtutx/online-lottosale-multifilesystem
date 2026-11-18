@@ -18,6 +18,8 @@ import 'terms_screen.dart';
 import 'wallet_requests_screen.dart';
 import 'wallet_transfer_screen.dart';
 import 'active_terms_screen.dart';
+import 'purchase_terms_screen.dart';
+import 'settings_screen.dart';
 
 class _Tile {
   final String label;
@@ -50,12 +52,13 @@ class _HomeScreenState extends State<HomeScreen> {
             !(session.isAgent && _notForAgent.contains(t.label)))
           t,
   ];
-  // Prize rates belong to the master's own book.
-  static const _bookTiles = {'အလျော်အဆ'};
+  // These tiles are only shown to master (book) accounts.
+  static const _bookTiles = {'အလျော်အဆ', 'အဝယ်'};
   // An agent has no agents under it; ကော်မရှင် stays — it sets its own users'.
   static const _notForAgent = {'Agents'};
   static final _allTiles = <_Tile>[
     _Tile('အရောင်း', Icons.point_of_sale, const Color(0xFF7C3AED), (_) => const ActiveTermsScreen()),
+    _Tile('အဝယ်', Icons.shopping_bag_outlined, const Color(0xFF0E7490), (_) => const PurchaseTermsScreen()),
     _Tile('စလစ်များ', Icons.receipt_long, const Color(0xFF10B981), (_) => const SlipsScreen()),
     _Tile('အပါတ်စဥ်', Icons.event_note, const Color(0xFF4338CA), (_) => const TermsScreen()),
     _Tile('စာရင်းများ', Icons.bar_chart, const Color(0xFFEF4444), (_) => const ReportScreen()),
@@ -136,7 +139,12 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text('Lotto ${session.roleName}'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          if (session.isMaster)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            ),
           IconButton(
             icon: const Icon(Icons.account_circle),
             tooltip: 'Profile',

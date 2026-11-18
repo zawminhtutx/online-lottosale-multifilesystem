@@ -7,6 +7,7 @@ import { config } from '../config.js';
 import { authenticate, PUBLIC_USER_COLUMNS, signToken } from '../auth.js';
 import { houseMasterId } from '../books.js';
 import { HttpError, badRequest } from '../errors.js';
+import { getMasterSettings } from './master-settings.js';
 
 export const router = Router();
 
@@ -48,7 +49,17 @@ router.post('/login', loginLimiter, async (req, res) => {
   res.json({ token: signToken(user), user: publicUser });
 });
 
-router.get('/me', authenticate, (req, res) => res.json(req.user));
+router.get('/me', authenticate, async (req, res) => {
+  // For non-master users include their master's settings so the mobile app can apply them.
+  if (req.user.role === 'user' || req.user.role === 'agent') {
+    const masterId = await houseMasterId(db, req.user);
+    if (masterId) {
+      const masterSettings = await getMasterSettings(masterId);
+      return res.json({ ...req.user, master_settings: masterSettings });
+    }
+  }
+  res.json(req.user);
+});
 
 router.post('/change-password', authenticate, async (req, res) => {
   const { current_password, new_password } = z
