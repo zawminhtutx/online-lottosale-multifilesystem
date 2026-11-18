@@ -2,7 +2,7 @@ import { api, session } from '/common/js/api.js';
 import { onLive } from '/common/js/live.js';
 import { deleteRequestActions } from './slip-cancel-requests.js';
 import { t } from '/common/js/i18n.js';
-import { badge, dateTime, h, money, mount, pageHeader, table } from '/common/js/ui.js';
+import { badge, dateTime, field, h, money, mount, pageHeader, table } from '/common/js/ui.js';
 
 const stat = (label, value, sub, cls = '') =>
   h('div', { class: `card stat ${cls}`.trim() }, h('div', { class: 'label' }, label), h('div', { class: 'value' }, value), sub && h('div', { class: 'sub' }, sub));
@@ -14,11 +14,12 @@ export default async function dashboard(main, { rerender }) {
   // A master / an agent runs its own tree. The dashboard does not lead with that account's own
   // balance. Slip delete requests are scoped to that tree (the agent's own users).
   const own = !admin;
-  const [overview, terms, folders, deleteRequests] = await Promise.all([
+  const [overview, terms, folders, deleteRequests, mastersList] = await Promise.all([
     api.get('/reports/overview'),
     admin ? Promise.resolve([]) : api.get('/terms'),
     admin ? Promise.resolve([]) : api.get('/term-folders'),
     admin ? Promise.resolve([]) : api.get('/slip-cancel-requests?status=pending'),
+    admin ? api.get('/users?role=master') : Promise.resolve([]),
   ]);
   const folderName = new Map(folders.map((f) => [f.id, f.name]));
   const byRole = (role) => overview.accounts.find((a) => a.role === role) ?? { count: 0, active: 0, balance: 0 };
@@ -69,7 +70,38 @@ export default async function dashboard(main, { rerender }) {
         ],
         terms.slice(0, 8),
         { empty: t('No terms yet — create one on the Terms page'), onRowClick: (x) => (location.hash = `#/terms/${x.id}`) }
-      )));
+      )),
+    // Admin: full list of masters
+    admin && h('div', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', {}, t('Masters')), h('a', { href: '#/users?role=master' }, t('View all →'))),
+      table(
+        [
+          { label: t('Username'), render: (u) => h('a', { href: `#/users/${u.id}` }, u.username) },
+          { label: t('Name'), render: (u) => u.name ?? '—' },
+          { label: t('Balance'), align: 'right', render: (u) => money(u.balance) },
+          { label: t('Status'), render: (u) => badge(u.status) },
+          { label: t('Created'), render: (u) => dateTime(u.created_at) },
+        ],
+        mastersList,
+        { empty: t('No masters yet'), onRowClick: (u) => (location.hash = `#/users/${u.id}`) }
+      )),
+    // Settings: Gemini AI API key (stored per browser in localStorage)
+    h('div', { class: 'card', style: 'margin-top:16px' },
+      h('div', { class: 'card-head' }, h('h2', {}, 'Settings')),
+      (() => {
+        const inp = h('input', {
+          type: 'password',
+          style: 'width:100%;box-sizing:border-box',
+          placeholder: 'AIzaSy…',
+          value: localStorage.getItem('gemini_api_key') ?? '',
+        });
+        inp.addEventListener('change', () => {
+          const v = inp.value.trim();
+          if (v) localStorage.setItem('gemini_api_key', v);
+          else localStorage.removeItem('gemini_api_key');
+        });
+        return field('Gemini AI API Key', inp, 'Copy-paste AI ဘာသာပြန်ရန် Google AI Studio မှ API key ထည့်ပါ');
+      })()));
 
   // A new or decided delete request refreshes the dashboard (stops once another page is shown).
   if (admin) return;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, FilteringTextInputFormatter;
 
 import '../models/pattern_entry.dart';
+import '../services/gemini_service.dart';
 import '../services/pattern_parser.dart';
 import '../services/responsive.dart';
 import '../services/sound_service.dart';
@@ -747,11 +748,14 @@ class _PatternKeypadSheetState extends State<PatternKeypadSheet> {
   // -> ထည့်မည် there adds everything to the cart with the ENTER sound, like အခွေ does (no
   // per-number break confirmation; Save still checks on the server). With wrong lines the table
   // lists them in red and ပြင်မည် goes back to the text box to fix them.
+  // "AI ဘာသာပြန်" sends the pasted text to Gemini first to normalise mixed/translated formats.
   Future<void> _pasteBets() async {
     SoundService.instance.keyPress();
     final clip = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
     if (!mounted) return;
     final ctrl = TextEditingController(text: clip.trim());
+    bool aiLoading = false;
+    var aiError = '';
     final added = await showDialog<List<PastedBet>>(
       context: context,
       barrierDismissible: false,
@@ -762,6 +766,11 @@ class _PatternKeypadSheetState extends State<PatternKeypadSheet> {
             width: double.maxFinite,
             child: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (aiError.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(aiError, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                  ),
                 TextField(
                   controller: ctrl,
                   minLines: 8,
@@ -786,6 +795,28 @@ class _PatternKeypadSheetState extends State<PatternKeypadSheet> {
                     icon: const Icon(Icons.clear, size: 18),
                     label: const Text('ဖျက်'),
                     onPressed: () => setDialogState(ctrl.clear),
+                  ),
+                  TextButton.icon(
+                    icon: aiLoading
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.translate, size: 18),
+                    label: const Text('AI ဘာသာပြန်'),
+                    onPressed: aiLoading
+                        ? null
+                        : () async {
+                            final text = ctrl.text.trim();
+                            if (text.isEmpty) return;
+                            setDialogState(() => aiLoading = true);
+                            try {
+                              final result = await GeminiService.translateBets(text);
+                              setDialogState(() {
+                                ctrl.text = result;
+                                aiLoading = false;
+                              });
+                            } catch (e) {
+                              setDialogState(() { aiLoading = false; aiError = '$e'; });
+                            }
+                          },
                   ),
                 ]),
               ]),
