@@ -661,8 +661,8 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
     }
   }
 
-  // Role ပြောင်းရန် (admin only): e.g. an old view-only admin into a user. Login, password and
-  // history stay; the server refuses changes that would break the tree or the ledger.
+  // Role ပြောင်းရန်: the admin, on a master; a master, on an agent or user in their tree
+  // (only between agent and user). Login, password and history stay.
   Future<void> _changeRole() async {
     final u = user!;
     List<Map<String, dynamic>> uplines = [];
@@ -679,6 +679,9 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
     // Role change goes by the server's PARENT_ROLES: an account opened before the "no agent / user
     // straight under the admin" rule may still sit there, so admin stays in the list.
     const parentRoles = {'master': ['admin'], 'agent': ['admin', 'master'], 'user': ['admin', 'master', 'agent']};
+    final choices = context.read<Session>().isMaster
+        ? {'agent': 'Agent', 'user': 'User'}
+        : roleNames;
     String role = '${u['role']}';
     int? parentId = u['parent_id'] == null ? null : asInt(u['parent_id']);
     final picked = await showDialog<(String, int?)>(
@@ -693,7 +696,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
             DropdownButtonFormField<String>(
               initialValue: role,
               decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder(), isDense: true),
-              items: [for (final r in roleNames.entries) DropdownMenuItem(value: r.key, child: Text(r.value))],
+              items: [for (final r in choices.entries) DropdownMenuItem(value: r.key, child: Text(r.value))],
               onChanged: (v) => setSt(() => role = v ?? role),
             ),
             const SizedBox(height: 12),
@@ -756,7 +759,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
     final isSelf = asInt(u['id']) == session.id;
     // can_manage false: an account outside the caller's tree, opened through view-all — read only.
     final manage = u['can_manage'] != false;
-    final canSetSaleOver = manage && !isSelf && ((session.isAdmin && isMaster) || (session.isMaster && isAgent));
+    final canSetSaleOver = manage && !isSelf && ((session.isAdmin && isMaster) || (session.isMaster && (isAgent || u['role'] == 'user')) || (session.isAgent && u['role'] == 'user'));
     final canSetHotEdit = session.isAdmin && manage && !isSelf && isMaster;
     final canSetLedgerMail = manage && !isSelf && (isAgent || u['role'] == 'user');
     final logo = accountLogo(u['logo']);
@@ -767,7 +770,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       appBar: AppBar(
         title: Text('${u['username']}'),
         actions: [
-          if (session.isAdmin && !isSelf && isMaster)
+          if (!isSelf && manage && ((session.isAdmin && isMaster) || (session.isMaster && (isAgent || u['role'] == 'user'))))
             IconButton(icon: const Icon(Icons.swap_horiz), tooltip: 'Role ပြောင်းရန်', onPressed: _changeRole),
           if (manage) IconButton(icon: const Icon(Icons.edit), tooltip: 'ပြင်ရန်', onPressed: _edit),
         ],
@@ -899,7 +902,9 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   value: asInt(u['sale_over']) == 1,
                   onChanged: _setSaleOver,
                   title: const Text('အကျွံများသိမ်း', style: TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: const Text('Master သည် ကိုယ့်ဖိုင်တွင် ခွင့်မလိုပါ။ ဤခလုတ်သည် Agent နှင့် မျှဝေဖိုင်အတွက်သာ ဖြစ်သည်'),
+                  subtitle: Text(u['role'] == 'user'
+                      ? 'ခွင့်ပြုလျှင် ဤ user ၏ ဘရိတ်ကျော်ထိုးကြေးကို လက်ခံမည်'
+                      : 'Master သည် ကိုယ့်ဖိုင်တွင် ခွင့်မလိုပါ။ Agent နှင့် User အတွက် ဤခလုတ်ဖြင့် ခွင့်ပြုပါ'),
                 ),
               ]),
             if (!isAdmin)

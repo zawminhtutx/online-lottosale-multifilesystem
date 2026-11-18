@@ -531,7 +531,7 @@ class _BetScreenState extends State<BetScreen> {
         'term_id': widget.termId,
         'user_id': customerId,
         'entries': _entries(cart),
-        if ((session.canSaveOver || manages(term)) && saveOver) 'save_over': true,
+        if ((session.canSaveOver || manages(term) || asInt(customer?['sale_over']) == 1) && saveOver) 'save_over': true,
       }) as Map);
       // Cleared in place: an open keypad (docked or pop-up) holds this same list and stays open
       // after a save for the next slip.
@@ -1013,7 +1013,7 @@ class _BetScreenState extends State<BetScreen> {
           const Text('စုစုပေါင်း', style: TextStyle(color: Color(0xFF1E1B4B), fontWeight: FontWeight.w700)),
           const Spacer(),
           Text('${session.money(grandTotal)} Ks', style: const TextStyle(color: Color(0xFF1E1B4B), fontWeight: FontWeight.w900, fontSize: 16)),
-          if (session.canSaveOver || manages(term)) ...[
+          if (session.canSaveOver || manages(term) || asInt(customer?['sale_over']) == 1) ...[
             const SizedBox(width: 8),
             InkWell(
               onTap: () => setState(() => saveOver = !saveOver),

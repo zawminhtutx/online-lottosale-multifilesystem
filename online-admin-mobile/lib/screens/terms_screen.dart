@@ -422,8 +422,9 @@ class _TermsScreenState extends State<TermsScreen> {
       return;
     }
     const finished = {'settled', 'cancelled', 'draft'};
-    if (folderTerms.any((t) => !finished.contains('${t['status']}')) ||
-        folderTerms.any((t) => asInt(t['slip_count']) > 0 && t['status'] != 'settled')) {
+    final masterClosed = context.read<Session>().isMaster && folderTerms.every((t) => finished.contains('${t['status']}') || t['status'] == 'closed');
+    if (!masterClosed && (folderTerms.any((t) => !finished.contains('${t['status']}')) ||
+        folderTerms.any((t) => asInt(t['slip_count']) > 0 && t['status'] != 'settled'))) {
       errorSnack(context, 'ငွေရှင်းပြီးသော ဖိုင်များကိုသာ ဖျက်နိုင်သည်');
       return;
     }

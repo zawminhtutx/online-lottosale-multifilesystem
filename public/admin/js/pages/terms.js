@@ -190,7 +190,8 @@ export default async function terms(main, { query, rerender }) {
     if (!rows) return;
     if (rows.some((t) => t.status === 'open')) return toast(t('Cannot delete a folder that has open terms'), 'bad');
     const finished = new Set(['settled', 'cancelled', 'draft']);
-    if (rows.some((t) => !finished.has(t.status)) || rows.some((t) => t.slip_count > 0 && t.status !== 'settled')) {
+    const masterClosed = session.get()?.user?.role === 'master' && rows.every((t) => finished.has(t.status) || t.status === 'closed');
+    if (!masterClosed && (rows.some((t) => !finished.has(t.status)) || rows.some((t) => t.slip_count > 0 && t.status !== 'settled'))) {
       return toast(t('Only settled folders can be deleted'), 'bad');
     }
     const mode = await pickFolderDeleteMode(f);

@@ -23,8 +23,8 @@ export default async function userDetail(main, { params, rerender }) {
   // its own tree. ကော်မရှင် is handed down one step at a time (see src/routes/users.js).
   const canMove = !byAdmin && !isSelf;
   const canSetCommission = !byAdmin && !isSelf && ({ master: ['agent', 'user'], agent: ['user'] }[viewer?.role] ?? []).includes(user.role);
-  // အကျွံများသိမ်း: the admin turns it on for a master; a master turns it on for an agent.
-  const canSetSaleOver = !isSelf && ((byAdmin && user.role === 'master') || (viewer?.role === 'master' && user.role === 'agent'));
+  // အကျွံများသိမ်း: the admin turns it on for a master; a master for an agent or a user; an agent for a user.
+  const canSetSaleOver = !isSelf && ((byAdmin && user.role === 'master') || (viewer?.role === 'master' && ['agent', 'user'].includes(user.role)) || (viewer?.role === 'agent' && user.role === 'user'));
   const canSetHotEdit = byAdmin && !isSelf && user.role === 'master';
   // A master fills agent and user balances directly. An agent hands over its own money.
   const walletHint = !byAdmin && !isSelf && (viewer.role === 'master'
@@ -49,6 +49,7 @@ export default async function userDetail(main, { params, rerender }) {
     canSetSaleOver && saleOverCard(user, rerender),
     canSetHotEdit && hotEditCard(user, rerender),
     viewer?.role === 'admin' && !isSelf && await roleCard(user, rerender),
+    viewer?.role === 'master' && !isSelf && ['agent', 'user'].includes(user.role) && await roleCard(user, rerender, { roles: { agent: 'Agent', user: 'User' }, autoParent: 'အလိုအလျောက် (လက်ရှိ အထက် / ကိုယ်တိုင်)' }),
     !byAdmin && hasChildren && childrenCard(user, children, isSelf),
     !byAdmin && !isAdmin && walletHistoryCard(transactions));
 }
@@ -93,21 +94,21 @@ function saleOverCard(account, rerender) {
       h('button', { type: 'button', class: !on ? 'btn btn-danger' : 'btn', 'aria-pressed': String(!on), onclick: set(false) }, `${!on ? '✓ ' : ''}${t('Deny')}`)));
 }
 
-// Role (admin only): turn an account into another role — e.g. an old view-only admin into a
-// user — keeping its login and history. The server refuses changes that would break the tree or
-// the ledger (a user with slips, accounts under it that would no longer fit, an admin with money).
+// Role: the admin turns any account into another role. A master does the same for the agents and
+// users in their own tree, and only between those two roles. Login and history stay. The server
+// refuses changes that would break the tree or the ledger.
 const ROLE_NAMES = { admin: 'Admin', master: 'Master', agent: 'Agent', user: 'User' };
 // Role change goes by the server's PARENT_ROLES (src/routes/users.js): an account opened before the
 // "no agent / user straight under the admin" rule may still sit there, so this keeps admin in.
 const PARENT_ROLES = { master: ['admin'], agent: ['admin', 'master'], user: ['admin', 'master', 'agent'] };
 
-async function roleCard(user, rerender) {
+async function roleCard(user, rerender, { roles = ROLE_NAMES, autoParent = 'အလိုအလျောက် (လက်ရှိ အထက် / Admin)' } = {}) {
   const uplines = (await api.get('/users')).filter((u) => u.id !== user.id && ['admin', 'master', 'agent'].includes(u.role));
-  const roleSelect = select('role', Object.entries(ROLE_NAMES), user.role);
+  const roleSelect = select('role', Object.entries(roles), user.role);
   const parentSelect = select('parent_id', [], '');
   const fill = () => {
     const allowed = PARENT_ROLES[roleSelect.value] ?? [];
-    parentSelect.replaceChildren(...[['', roleSelect.value === 'admin' ? '— (Admin: အထက်မရှိ)' : 'အလိုအလျောက် (လက်ရှိ အထက် / Admin)'],
+    parentSelect.replaceChildren(...[['', roleSelect.value === 'admin' ? '— (Admin: အထက်မရှိ)' : autoParent],
       ...uplines.filter((u) => allowed.includes(u.role)).map((u) => [u.id, `${u.username} — ${u.name} (${ROLE_NAMES[u.role]})`])]
       .map(([v, l]) => h('option', { value: v, selected: String(v) === String(user.parent_id ?? '') && roleSelect.value !== 'admin' }, l)));
     parentSelect.disabled = roleSelect.value === 'admin';

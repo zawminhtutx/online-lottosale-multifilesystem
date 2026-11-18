@@ -118,7 +118,7 @@ class Api {
     'Download the Excel backup first': 'ဖျက်ခင် Excel + PDF backup အရင်ထုတ်ရပါမည် — web admin တွင် ဖျက်ပါ',
     'Saving over the unit break is not allowed': 'ဘရိတ်ကျော်၍ သိမ်းရန် ခွင့်မပြုထားပါ',
     'Only the admin can allow saving over the unit break': 'အကျွံများသိမ်းကို Admin သာ ခွင့်ပြုနိုင်သည်',
-    'Over-break save is for master and agent accounts': 'အကျွံများသိမ်းသည် Master / Agent အကောင့်များအတွက်သာ ဖြစ်သည်',
+    'Over-break save is for master, agent and user accounts': 'အကျွံများသိမ်းသည် Master / Agent / User အကောင့်များအတွက်သာ ဖြစ်သည်',
     'Only accounts with role "user" can hold tickets': 'User အကောင့်များသာ စလစ် ထိုးနိုင်သည်',
     'Name already exists': 'ဤအမည် ရှိပြီးသားဖြစ်သည်',
     'Prize set is still assigned to accounts': 'ဤအဆကို အကောင့်များ သုံးနေသေးသည် — အရင် ဖြုတ်ပါ',
@@ -129,6 +129,9 @@ class Api {
     'Hot number edit is not enabled': 'ဟော့ဂဏန်း ပြင်ခွင့် မရှိပါ',
     'Only the admin can allow editing hot numbers': 'ဟော့ဂဏန်း ပြင်ခွင့်ကို Admin သာ ပေးနိုင်သည်',
     'Hot number edit is for master accounts': 'ဟော့ဂဏန်း ပြင်ခွင့်သည် Master အကောင့်များအတွက်သာ ဖြစ်သည်',
+    'A master can only change agent and user accounts': 'Master သည် သူ့အောက်က Agent / User ကိုသာ Role ပြောင်းနိုင်သည်',
+    'A master can only set the agent or user role': 'Master သည် Agent သို့မဟုတ် User အဖြစ်သာ ပြောင်းနိုင်သည်',
+    'That upline is outside your accounts': 'အဲဒီအထက်အကောင့်သည် သင့်အောက်တွင် မရှိပါ',
   };
   static final _patterns = <(RegExp, String Function(Match))>[
     (RegExp(r'^(.+) (\d+): only (\d+) unit\(s\) left$'), (m) => '${m[1]} ${m[2]} — ယူနစ် ${m[3]} သာ ကျန်ပါသည်'),

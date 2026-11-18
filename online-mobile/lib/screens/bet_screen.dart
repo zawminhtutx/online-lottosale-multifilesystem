@@ -282,6 +282,7 @@ class _BetScreenState extends State<BetScreen> {
       final ticket = Map<String, dynamic>.from(await Api.instance.post('/tickets', {
         'term_id': widget.termId,
         'entries': _entries(cart),
+        if (asInt(session.user?['sale_over']) == 1) 'save_over': true,
       }) as Map);
       // Cleared in place: an open keypad (docked or pop-up) holds this same list and stays open
       // after a save for the next slip.

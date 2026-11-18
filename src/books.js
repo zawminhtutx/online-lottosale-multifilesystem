@@ -17,12 +17,13 @@ export async function houseMasterId(client, user) {
   if (user.role === 'master') return Number(user.id);
   const row = await one(
     client,
-    `WITH RECURSIVE chain(id, parent_id, role) AS (
-       SELECT id, parent_id, role FROM users WHERE id = ?
+    `WITH RECURSIVE chain(id, parent_id, role, depth) AS (
+       SELECT id, parent_id, role, 0 FROM users WHERE id = ?
        UNION ALL
-       SELECT u.id, u.parent_id, u.role FROM users u JOIN chain c ON u.id = c.parent_id
+       SELECT u.id, u.parent_id, u.role, c.depth + 1
+       FROM users u JOIN chain c ON u.id = c.parent_id
      )
-     SELECT id FROM chain WHERE role = 'master' LIMIT 1`,
+     SELECT id FROM chain WHERE role = 'master' ORDER BY depth LIMIT 1`,
     [user.id]
   );
   return row ? Number(row.id) : null;

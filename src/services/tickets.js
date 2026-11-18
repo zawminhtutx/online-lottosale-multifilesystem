@@ -54,9 +54,11 @@ export async function nextSlipNo(client, termId, user, actor = user) {
   return `${slipPrefix(actor.role)}-${user.username}-${String(n).padStart(4, '0')}`;
 }
 
-function canSaveOver(actor) {
+function canSaveOver(actor, bettor) {
   if (actor.role === 'admin') return true;
-  return ['master', 'agent'].includes(actor.role) && Number(actor.sale_over) === 1;
+  if (['master', 'agent', 'user'].includes(actor.role) && Number(actor.sale_over) === 1) return true;
+  // A master or an agent granted this user the right to have over-break bets accepted.
+  return bettor?.role === 'user' && Number(bettor.sale_over) === 1;
 }
 
 export async function placeTicket(actor, { term_id, user_id, entries, dry_run: dryRun = false, save_over: saveOver = false }, clientIp) {
@@ -96,7 +98,7 @@ export async function placeTicket(actor, { term_id, user_id, entries, dry_run: d
     const term = await one(tx, 'SELECT * FROM terms WHERE id = ?', [term_id]);
     if (!term) throw notFound('Term not found');
     await assertTermVisible(tx, bettor, term);
-    if (saveOver && !canSaveOver(actor)) {
+    if (saveOver && !canSaveOver(actor, bettor)) {
       const folder = term.folder_id
         ? await one(tx, 'SELECT master_id FROM term_folders WHERE id = ?', [term.folder_id])
         : null;

@@ -11,15 +11,14 @@ export default async function dashboard(main, { rerender }) {
   const role = session.get()?.user?.role;
   const admin = role === 'admin';
   const book = role === 'master';
-  // A master / an agent runs its own tree: its own balance comes first (every deposit it makes
-  // comes out of it). Slip delete requests are scoped to that tree (the agent's own users).
+  // A master / an agent runs its own tree. The dashboard does not lead with that account's own
+  // balance. Slip delete requests are scoped to that tree (the agent's own users).
   const own = !admin;
-  const [overview, terms, folders, deleteRequests, myAccount] = await Promise.all([
+  const [overview, terms, folders, deleteRequests] = await Promise.all([
     api.get('/reports/overview'),
     admin ? Promise.resolve([]) : api.get('/terms'),
     admin ? Promise.resolve([]) : api.get('/term-folders'),
     admin ? Promise.resolve([]) : api.get('/slip-cancel-requests?status=pending'),
-    own ? api.get('/auth/me') : Promise.resolve(null),
   ]);
   const folderName = new Map(folders.map((f) => [f.id, f.name]));
   const byRole = (role) => overview.accounts.find((a) => a.role === role) ?? { count: 0, active: 0, balance: 0 };
@@ -34,7 +33,6 @@ export default async function dashboard(main, { rerender }) {
         role === 'agent' ? t('Users') : t('Manage agents')),
       !admin && h('a', { class: 'btn btn-primary', href: '#/terms' }, book ? t('Manage terms') : t('Terms'))),
     h('div', { class: own ? 'stats stats-compact' : 'stats' },
-      own && stat(t('My balance'), `${money(myAccount.balance)} ${t('Ks')}`, myAccount.unlimited ? t('Unlimited wallet') : null, 'stat-hero'),
       admin && masters.count > 0 && stat(t('Masters'), masters.count, t('{n} active', { n: masters.active })),
       admin && masters.count > 0 && stat(t('Master balances'), money(masters.balance), t('Ks held by masters')),
       !admin && role !== 'agent' && stat(t('Agents'), agents.count, t('{n} active', { n: agents.active })),

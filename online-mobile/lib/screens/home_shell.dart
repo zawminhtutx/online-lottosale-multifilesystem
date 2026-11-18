@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../services/api.dart';
 import '../services/responsive.dart';
 import '../services/session.dart';
 import '../widgets/dash_style.dart';
@@ -27,7 +30,20 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
+ImageProvider? _houseLogo(String? logo) {
+  final s = logo ?? '';
+  if (s.startsWith('http://') || s.startsWith('https://')) return NetworkImage(s);
+  final comma = s.indexOf(',');
+  if (!s.startsWith('data:image') || comma < 0) return null;
+  try {
+    return MemoryImage(base64Decode(s.substring(comma + 1)));
+  } catch (_) {
+    return null;
+  }
+}
+
 class _HomeShellState extends State<HomeShell> {
+  String? houseLogo;
   static final _items = <_MenuItem>[
     _MenuItem('အရောင်း', Icons.casino, const Color(0xFF7C3AED), (_) => const ActiveTermsScreen()),
     _MenuItem('စလစ်', Icons.receipt_long, const Color(0xFF10B981), (_) => const SlipsScreen()),
@@ -41,7 +57,26 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    final name = '${context.read<Session>().user?['username'] ?? ''}'.trim();
+    if (name.isNotEmpty && Api.instance.brandUser == name) houseLogo = Api.instance.brandLogo;
     context.read<Session>().refresh();
+    _loadHouseLogo();
+  }
+
+  // The picture of the master above this user: the agent's master, or the master
+  // the user hangs under directly. No picture keeps the letter avatar.
+  Future<void> _loadHouseLogo() async {
+    final name = '${context.read<Session>().user?['username'] ?? ''}'.trim();
+    if (name.isEmpty) return;
+    try {
+      final r = await Api.instance.get('/auth/brand?username=${Uri.encodeQueryComponent(name)}');
+      final raw = r is Map ? r['logo']?.toString() : null;
+      final logo = (raw == null || raw.isEmpty) ? null : raw;
+      try {
+        await Api.instance.saveBrandLogo(name, logo);
+      } catch (_) {}
+      if (mounted) setState(() => houseLogo = logo);
+    } catch (_) {}
   }
 
   Future<void> _logout() async {
@@ -79,11 +114,20 @@ class _HomeShellState extends State<HomeShell> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
           children: [
-            const Text('Lotto', style: TextStyle(color: Color(0xFFE0E7FF), fontWeight: FontWeight.w700, fontSize: 30)),
+            Row(children: [
+              if (_houseLogo(houseLogo) != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image(image: _houseLogo(houseLogo)!, width: 48, height: 48, fit: BoxFit.cover),
+                ),
+                const SizedBox(width: 12),
+              ],
+              const Text('Lotto', style: TextStyle(color: Color(0xFFE0E7FF), fontWeight: FontWeight.w700, fontSize: 30)),
+            ]),
             const SizedBox(height: 2),
             Text('အပါတ်စဥ်ရွေးပြီး ရောင်းပါ', style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 14)),
             const SizedBox(height: 18),
-            GestureDetector(onTap: () => _open(_profile), child: _BalanceCard(session: session)),
+            GestureDetector(onTap: () => _open(_profile), child: _BalanceCard(session: session, logo: houseLogo)),
             const SizedBox(height: 14),
             LayoutBuilder(builder: (ctx, constraints) {
               final crossAxisCount = Responsive.columnsForWidth(constraints.maxWidth, idealCellWidth: 170, minCount: 2, maxCount: 5);
@@ -108,11 +152,13 @@ class _HomeShellState extends State<HomeShell> {
 
 class _BalanceCard extends StatelessWidget {
   final Session session;
-  const _BalanceCard({required this.session});
+  final String? logo;
+  const _BalanceCard({required this.session, this.logo});
 
   @override
   Widget build(BuildContext context) {
     final negative = session.balance < 0;
+    final mark = _houseLogo(logo);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -124,8 +170,11 @@ class _BalanceCard extends StatelessWidget {
         CircleAvatar(
           radius: 24,
           backgroundColor: Colors.white.withValues(alpha: .2),
-          child: Text(session.name.isEmpty ? '?' : session.name.substring(0, 1).toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20)),
+          backgroundImage: mark,
+          child: mark == null
+              ? Text(session.name.isEmpty ? '?' : session.name.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20))
+              : null,
         ),
         const SizedBox(width: 14),
         Expanded(

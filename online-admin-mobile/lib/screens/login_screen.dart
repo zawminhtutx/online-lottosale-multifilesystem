@@ -81,8 +81,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final r = await Api.instance.get('/auth/brand?username=${Uri.encodeQueryComponent(name)}');
       final raw = r is Map ? r['logo']?.toString() : null;
       final logo = (raw == null || raw.isEmpty) ? null : raw;
-      await Api.instance.saveBrandLogo(name, logo);
       if (mounted && _u.text.trim() == name) setState(() => masterLogo = logo);
+      try {
+        await Api.instance.saveBrandLogo(name, logo);
+      } catch (_) {}
     } catch (_) {
       // Keep the saved picture when the server cannot be reached.
     }

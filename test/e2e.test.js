@@ -1619,7 +1619,26 @@ test('role change: admin -> user, with the safety checks', async () => {
   const user1 = users.find((u) => u.username === 'user1');
   const me = (await call('GET', '/api/auth/me', admin)).body;
 
-  assert.equal((await call('PUT', `/api/users/${viewer.id}/role`, master, { role: 'user' })).status, 403); // admins only
+  // A master retargets only the agents and users in their own tree, between those two roles.
+  assert.equal((await call('PUT', `/api/users/${viewer.id}/role`, master, { role: 'user' })).status, 404);
+  const mine = (await call('GET', '/api/auth/me', master)).body;
+  const made = await call('POST', '/api/users', master, { username: 'mrole', password: 'xxxxxx', role: 'user', name: 'Role' });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const toAgent = await call('PUT', `/api/users/${made.body.id}/role`, master, { role: 'agent' });
+  assert.equal(toAgent.status, 200, JSON.stringify(toAgent.body));
+  assert.equal(toAgent.body.role, 'agent');
+  assert.equal(toAgent.body.parent_id, mine.id);
+  const under = await call('POST', '/api/users', master, { username: 'mrole2', password: 'xxxxxx', role: 'user', name: 'Role 2', parent_id: made.body.id });
+  assert.equal(under.status, 201, JSON.stringify(under.body));
+  const lifted = await call('PUT', `/api/users/${under.body.id}/role`, master, { role: 'agent' });
+  assert.equal(lifted.status, 200, JSON.stringify(lifted.body));
+  assert.equal(lifted.body.parent_id, mine.id); // an agent cannot hang under an agent, so it moves under the master
+  assert.equal((await call('PUT', `/api/users/${made.body.id}/role`, master, { role: 'master' })).status, 403);
+  assert.equal((await call('PUT', `/api/users/${made.body.id}/role`, master, { role: 'admin' })).status, 403);
+  assert.equal((await call('PUT', `/api/users/${lifted.body.id}/role`, master, { role: 'user', parent_id: me.id })).status, 403);
+  assert.equal((await call('PUT', `/api/users/${lifted.body.id}/role`, await login('magent', 'xxxxxx'), { role: 'user' })).status, 403);
+  assert.equal((await call('PUT', `/api/users/${lifted.body.id}/role`, master, { role: 'user', parent_id: mine.id })).status, 200);
+  assert.equal((await call('PUT', `/api/users/${made.body.id}/role`, master, { role: 'user' })).status, 200);
   assert.equal((await call('PUT', `/api/users/${me.id}/role`, admin, { role: 'user' })).status, 403); // not oneself
   assert.equal((await call('PUT', `/api/users/${viewer.id}/role`, admin, { role: 'user', parent_id: user1.id })).status, 400); // a user is no upline
 

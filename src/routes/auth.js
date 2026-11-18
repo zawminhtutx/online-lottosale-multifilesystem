@@ -13,8 +13,9 @@ export const router = Router();
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.loginRateLimit, standardHeaders: 'draft-8', legacyHeaders: false });
 const brandLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false });
 
-// Login screens ask for the logo of the master above this username. Unknown names, the admin, and
-// a master with no picture all come back as null so the app keeps its own default logo.
+// Login screens ask for this username's house logo: a master's own picture, or the master above
+// an agent (a user under that agent, and a user hanging directly under the master, get the same
+// picture). Unknown names, the admin, and a master with no picture come back as null.
 router.get('/brand', brandLimiter, async (req, res) => {
   const username = z.object({ username: z.string().trim().max(60).optional() }).parse(req.query).username ?? '';
   if (!username) return res.json({ logo: null });

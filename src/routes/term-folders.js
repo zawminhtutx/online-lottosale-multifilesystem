@@ -6,6 +6,7 @@ import { assertManagesFolder, managesFolder, visibleOwnerSql } from '../books.js
 import { badRequest, notFound } from '../errors.js';
 import { broadcast } from '../live.js';
 import { eraseTerm, insertTerm } from './terms.js';
+import { applyBalance } from '../services/wallet.js';
 
 // Folders (ဖိုင်). A master owns the folders it creates (master_id). The admin still owns folders
 // with no master — the original shared book. An agent only reads the folders its tree can see.
@@ -162,19 +163,28 @@ router.patch('/:id', async (req, res) => {
   res.json(present(req.user, await withCounts('WHERE f.id = ?', [folder.id]))[0]);
 });
 
-// Deleting a folder erases it with its terms. An open term blocks it; a folder with sales is
-// only allowed once every remaining term is settled (ငွေရှင်းပြီး). Draft / cancelled terms with
-// no slips can go with it. Nothing is archived: what is deleted is gone.
+// Deleting a folder erases it with its terms. An open term blocks it. The admin may delete once
+// every term with sales is settled. A master may delete their own file once every term is closed
+// (ပိတ်ပြီး), settled, cancelled or still a draft — active slips on a closed term are refunded.
+// Nothing is archived: what is deleted is gone.
 router.delete('/:id', async (req, res) => {
   const folder = await loadFolder(id.parse(req.params.id));
   await assertManagesFolder(db, req.user, folder.id);
   const terms = await all(db, 'SELECT id, status, (SELECT COUNT(*) FROM tickets k WHERE k.term_id = t.id) AS slips FROM terms t WHERE folder_id = ?', [folder.id]);
   if (terms.some((t) => t.status === 'open')) throw badRequest('Cannot delete a folder that has open terms');
   const finished = new Set(['settled', 'cancelled', 'draft']);
-  if (terms.some((t) => !finished.has(t.status)) || terms.some((t) => t.slips > 0 && t.status !== 'settled')) {
+  const masterClosed = req.user.role === 'master' && terms.every((t) => finished.has(t.status) || t.status === 'closed');
+  if (!masterClosed && (terms.some((t) => !finished.has(t.status)) || terms.some((t) => t.slips > 0 && t.status !== 'settled'))) {
     throw badRequest('Only settled folders can be deleted');
   }
   await withTransaction(async (tx) => {
+    const ids = terms.map((t) => t.id);
+    if (ids.length) {
+      const active = await all(tx, `SELECT id, user_id, slip_no, net_amount FROM tickets WHERE status = 'active' AND term_id IN (${ids.map(() => '?').join(',')})`, ids);
+      for (const t of active) {
+        await applyBalance(tx, t.user_id, t.net_amount, 'refund', { createdBy: req.user.id, note: `Delete folder #${folder.id} slip ${t.slip_no}` });
+      }
+    }
     for (const t of terms) await eraseTerm(tx, t.id);
     await tx.execute({ sql: 'DELETE FROM term_folders WHERE id = ?', args: [folder.id] });
     await tx.execute({

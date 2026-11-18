@@ -212,7 +212,7 @@ const updateSchema = z.object({
   prize_set_id: z.number().int().min(0).optional(),
   unlimited: z.boolean().optional(),
   ledger_access: z.boolean().optional(), // admin only, masters: Live Ledger of every tree, not just their own
-  sale_over: z.boolean().optional(), // admin only: master / agent may save over the unit break on Sale
+  sale_over: z.boolean().optional(), // upline: this account may save bets over the unit break
   hot_edit: z.boolean().optional(), // admin only: a master may add / edit term hot numbers
   // Admins / agents: KPay / WavePay accounts their users send money to.
   kpay_no: z.string().trim().max(30).nullable().optional(),
@@ -248,10 +248,15 @@ router.patch('/:id', requireRole(...UPLINE_ROLES), async (req, res) => {
   }
 
   if (body.sale_over !== undefined) {
-    const adminOnMaster = req.user.role === 'admin' && target.role === 'master';
-    const masterOnAgent = req.user.role === 'master' && target.role === 'agent';
-    if (!adminOnMaster && !masterOnAgent) {
-      if (!['master', 'agent'].includes(target.role)) throw badRequest('Over-break save is for master and agent accounts');
+    // The admin grants it to a master. A master grants it to their agents and users.
+    // An agent grants it to their own users, so that user's over-break bets are accepted.
+    const allowed = (req.user.role === 'admin' && target.role === 'master')
+      || (req.user.role === 'master' && ['agent', 'user'].includes(target.role))
+      || (req.user.role === 'agent' && target.role === 'user');
+    if (!allowed) {
+      if (!['master', 'agent', 'user'].includes(target.role)) throw badRequest('Over-break save is for master, agent and user accounts');
+      // Admin can only grant to masters; granting to a user is out of scope entirely.
+      if (req.user.role === 'admin' && target.role === 'user') throw badRequest('Over-break save is for master, agent and user accounts');
       throw forbidden('Only the upline can allow saving over the unit break');
     }
     body.sale_over = body.sale_over ? 1 : 0;
@@ -304,17 +309,23 @@ router.patch('/:id', requireRole(...UPLINE_ROLES), async (req, res) => {
   res.json(user);
 });
 
-// Change an account's role (admin only) — e.g. an old view-only admin turned into a user. The
-// account keeps its id, username, password and history. Body: { role, parent_id? }: parent_id is the
-// account to hang it under (by default its current upline when that still fits the new role, else
-// the admin). Refused when the change would leave the tree or the ledger wrong:
+// Change an account's role — e.g. an old view-only admin turned into a user, or a master's user
+// turned into an agent. The account keeps its id, username, password and history. Body:
+// { role, parent_id? }: parent_id is the account to hang it under (by default its current upline
+// when that still fits the new role, else the admin, or the master when a master makes the change).
+// A master may only retarget the agents and users in their own tree, and only between those two
+// roles. Refused when the change would leave the tree or the ledger wrong:
 // - a user with slips stays a user (slips belong to user accounts);
 // - accounts under it must still fit under the new role (move them first otherwise);
 // - an admin has no wallet, so an account becomes an admin only with a zero balance.
-router.put('/:id/role', requireRole('admin'), async (req, res) => {
+router.put('/:id/role', requireRole('admin', 'master'), async (req, res) => {
   const target = await loadAccessibleUser(db, req.user, id.parse(req.params.id));
   if (target.id === req.user.id) throw forbidden('You cannot change your own role');
   const body = z.object({ role: z.enum(ROLES), parent_id: id.nullable().optional() }).parse(req.body);
+  if (req.user.role === 'master') {
+    if (!['agent', 'user'].includes(target.role)) throw forbidden('A master can only change agent and user accounts');
+    if (!['agent', 'user'].includes(body.role)) throw forbidden('A master can only set the agent or user role');
+  }
   if (body.role === target.role && body.parent_id === undefined) throw badRequest('Nothing to update');
 
   if (target.role === 'user' && body.role !== 'user'
@@ -334,8 +345,12 @@ router.put('/:id/role', requireRole('admin'), async (req, res) => {
     if (body.parent_id && !parent) throw badRequest('Upline account not found');
     if (parent && PARENT_ROLES[body.role].includes(parent.role)) parentId = parent.id;
     else if (body.parent_id) throw badRequest(`A ${body.role} must belong to ${PARENT_ROLES[body.role].join(' or ')}`);
-    else parentId = req.user.id; // no fitting upline: straight under the admin
+    else parentId = req.user.id; // no fitting upline: straight under whoever is making the change
     if (parentId === target.id) throw badRequest('An account cannot belong to itself');
+    // A master cannot hang the account on the admin or on another master's tree.
+    if (req.user.role === 'master' && parentId !== req.user.id && !(await canAccess(db, req.user, { id: parentId }))) {
+      throw forbidden('That upline is outside your accounts');
+    }
     // The upline must not sit inside this account's own downline (that would make a loop).
     if (await one(db, `WITH RECURSIVE sub(id) AS (SELECT id FROM users WHERE parent_id = ?
                         UNION ALL SELECT u.id FROM users u JOIN sub s ON u.parent_id = s.id)
@@ -349,7 +364,7 @@ router.put('/:id/role', requireRole('admin'), async (req, res) => {
     `UPDATE users SET role = ?, parent_id = ?,
             unlimited = CASE WHEN ? = 'admin' THEN 0 ELSE unlimited END,
             ledger_access = CASE WHEN ? = 'master' THEN ledger_access ELSE 0 END,
-            sale_over = CASE WHEN ? IN ('master', 'agent') THEN sale_over ELSE 0 END,
+            sale_over = CASE WHEN ? IN ('master', 'agent', 'user') THEN sale_over ELSE 0 END,
             hot_edit = CASE WHEN ? = 'master' THEN hot_edit ELSE 0 END,
             updated_at = datetime('now')
      WHERE id = ? RETURNING ${PUBLIC_USER_COLUMNS}`,
