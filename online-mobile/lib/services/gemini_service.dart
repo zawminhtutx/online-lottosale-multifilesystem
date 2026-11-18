@@ -26,7 +26,7 @@ class GeminiService {
 
   // Sends [text] to Gemini and returns the formatted bet lines.
   // Throws if the key is missing or the request fails.
-  static Future<String> translateBets(String text, {String model = 'gemini-1.5-flash'}) async {
+  static Future<String> translateBets(String text, {String model = 'gemini-1.0-pro'}) async {
     final apiKey = await getApiKey();
     if (apiKey == null) throw Exception('Settings မှာ Gemini API key ထည့်ပါ');
 
@@ -43,7 +43,7 @@ class GeminiService {
         'Input:\n';
 
     final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1/models/$model:generateContent?key=$apiKey',
+      'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey',
     );
     final resp = await http
         .post(
