@@ -19,6 +19,7 @@ import { router as ticketRoutes } from './routes/tickets.js';
 import { router as reportRoutes } from './routes/reports.js';
 import { router as prizeRoutes } from './routes/prizes.js';
 import { router as settingsRoutes } from './routes/settings.js';
+import { router as aiRoutes } from './routes/ai.js';
 
 export const app = express();
 
@@ -92,6 +93,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/prize-sets', prizeRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Client-side routes of the online web app (/login, /terms, /sale/3, ...) load its index.html.
 app.get(/^\/(?!api\/|admin\/|agent\/|common\/).*/, (req, res, next) => {

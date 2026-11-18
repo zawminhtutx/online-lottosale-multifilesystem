@@ -85,22 +85,32 @@ export default async function dashboard(main, { rerender }) {
         mastersList,
         { empty: t('No masters yet'), onRowClick: (u) => (location.hash = `#/users/${u.id}`) }
       )),
-    // Settings: Gemini AI API key (stored per browser in localStorage)
-    h('div', { class: 'card', style: 'margin-top:16px' },
+    // Settings: Gemini AI API key (stored server-side so the proxy can use it; admin only)
+    admin && h('div', { class: 'card', style: 'margin-top:16px' },
       h('div', { class: 'card-head' }, h('h2', {}, 'Settings')),
       (() => {
         const inp = h('input', {
           type: 'password',
           style: 'width:100%;box-sizing:border-box',
           placeholder: 'AIzaSy…',
-          value: localStorage.getItem('gemini_api_key') ?? '',
         });
-        inp.addEventListener('change', () => {
+        const btn = h('button', { class: 'btn btn-primary', style: 'margin-top:8px' }, 'သိမ်းမည်');
+        const msg = h('small', { style: 'display:block;margin-top:4px;color:var(--color-success,green)' });
+        // Load current state (just whether a key is configured — never expose the value).
+        api.get('/ai/key').then(({ configured }) => {
+          inp.placeholder = configured ? '(key ထည့်ပြီးပါပြီ — ပြောင်းရန် အသစ်ရိုက်ပါ)' : 'AIzaSy…';
+        }).catch(() => {});
+        btn.addEventListener('click', async () => {
           const v = inp.value.trim();
-          if (v) localStorage.setItem('gemini_api_key', v);
-          else localStorage.removeItem('gemini_api_key');
+          try {
+            await api.put('/ai/key', { key: v });
+            msg.textContent = v ? 'API key သိမ်းပြီးပါပြီ ✓' : 'API key ဖျက်ပြီးပါပြီ';
+            inp.value = '';
+            inp.placeholder = v ? '(key ထည့်ပြီးပါပြီ — ပြောင်းရန် အသစ်ရိုက်ပါ)' : 'AIzaSy…';
+          } catch (e) { msg.style.color = 'red'; msg.textContent = `${e}`; }
         });
-        return field('Gemini AI API Key', inp, 'Copy-paste AI ဘာသာပြန်ရန် Google AI Studio မှ API key ထည့်ပါ');
+        const wrap = h('div', {}, field('Gemini AI API Key', inp, 'Copy-paste AI ဘာသာပြန်ရန် aistudio.google.com မှ API key ထည့်ပါ'), btn, msg);
+        return wrap;
       })()));
 
   // A new or decided delete request refreshes the dashboard (stops once another page is shown).
