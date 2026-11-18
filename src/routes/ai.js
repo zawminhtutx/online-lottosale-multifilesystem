@@ -24,11 +24,10 @@ async function detectModel(apiKey) {
   }
   const { models = [] } = await res.json();
   const preferred = [
-    'gemini-2.5-flash-lite', 'gemini-2.5-flash',
-    'gemini-2.5-pro',
-    'gemini-1.5-flash', 'gemini-1.5-pro',
-    'gemini-1.0-pro', 'gemini-pro',
-    'gemini-2.0-flash',
+    'gemini-3.5-flash-lite', 'gemini-3.5-flash',
+    'gemini-3.1-flash-lite', 'gemini-3.1-flash',
+    'gemini-2.5-flash', 'gemini-2.5-pro',
+    'gemini-1.5-flash', 'gemini-1.0-pro',
   ];
   let found = null;
   outer: for (const want of preferred) {
@@ -121,7 +120,12 @@ router.post('/translate-bets', async (req, res) => {
 
   const json = await geminiRes.json().catch(() => ({}));
   if (!geminiRes.ok) {
-    const detail = json.error?.message ?? geminiRes.status;
+    const detail = json.error?.message ?? String(geminiRes.status);
+    // If the detected model turned out to be deprecated/unavailable, bust the cache so the next
+    // request re-detects — otherwise every subsequent call reuses the bad model.
+    if (detail.includes('no longer available') || detail.includes('not found')) {
+      _modelCache.delete(apiKey);
+    }
     return res.status(502).json({ error: `Gemini error: ${detail}` });
   }
 
