@@ -24,11 +24,55 @@ class GeminiService {
     }
   }
 
+  // Returns the first generateContent-capable model available for [apiKey].
+  static Future<String> _detectModel(String apiKey) async {
+    final url = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey',
+    );
+    final resp = await http.get(url).timeout(const Duration(seconds: 15));
+    if (resp.statusCode != 200) {
+      String detail = resp.body;
+      try {
+        final j = jsonDecode(resp.body) as Map;
+        detail = (j['error'] as Map?)?['message'] as String? ?? resp.body;
+      } catch (_) {}
+      throw Exception('Gemini API key မမှန်ပါ (${resp.statusCode}): $detail');
+    }
+    final models = (jsonDecode(resp.body) as Map)['models'] as List? ?? [];
+    // Prefer flash/pro generative models in order of preference.
+    const preferred = [
+      'gemini-1.5-flash', 'gemini-1.5-pro',
+      'gemini-1.0-pro', 'gemini-pro',
+      'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+    ];
+    for (final want in preferred) {
+      for (final m in models) {
+        final name = (m as Map)['name'] as String? ?? '';
+        final methods = (m['supportedGenerationMethods'] as List?) ?? [];
+        if (name.contains(want) && methods.contains('generateContent')) {
+          // name is like "models/gemini-1.5-flash" — strip the prefix.
+          return name.replaceFirst('models/', '');
+        }
+      }
+    }
+    // Fallback: pick the first model that supports generateContent.
+    for (final m in models) {
+      final name = (m as Map)['name'] as String? ?? '';
+      final methods = (m['supportedGenerationMethods'] as List?) ?? [];
+      if (methods.contains('generateContent')) {
+        return name.replaceFirst('models/', '');
+      }
+    }
+    throw Exception('ဤ API key မှ generateContent ပံ့ပိုးသော model မတွေ့ပါ');
+  }
+
   // Sends [text] to Gemini and returns the formatted bet lines.
   // Throws if the key is missing or the request fails.
-  static Future<String> translateBets(String text, {String model = 'gemini-1.0-pro'}) async {
+  static Future<String> translateBets(String text) async {
     final apiKey = await getApiKey();
     if (apiKey == null) throw Exception('Settings မှာ Gemini API key ထည့်ပါ');
+
+    final model = await _detectModel(apiKey);
 
     const prompt =
         'You are a Myanmar 2D/3D lottery bet text parser.\n'
@@ -62,13 +106,12 @@ class GeminiService {
         .timeout(const Duration(seconds: 20));
 
     if (resp.statusCode != 200) {
-      // Try to surface the error message from the JSON body if present.
       String detail = resp.body;
       try {
         final j = jsonDecode(resp.body) as Map;
         detail = (j['error'] as Map?)?['message'] as String? ?? resp.body;
       } catch (_) {}
-      throw Exception('Gemini ${resp.statusCode}: $detail');
+      throw Exception('Gemini ${resp.statusCode} ($model): $detail');
     }
     final json = jsonDecode(resp.body) as Map;
     final parts = ((json['candidates'] as List?)?.firstOrNull?['content']
