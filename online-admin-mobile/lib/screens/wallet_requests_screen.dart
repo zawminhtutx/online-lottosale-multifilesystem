@@ -134,11 +134,11 @@ class _WalletRequestsScreenState extends State<WalletRequestsScreen> {
     final session = context.read<Session>();
     return Scaffold(
       appBar: AppBar(title: const Text('ငွေသွင်း/ထုတ် တောင်းဆိုမှု')),
-      floatingActionButton: session.isDownline
+      floatingActionButton: session.isAgent
           ? FloatingActionButton.extended(
               onPressed: _askUpline,
               icon: const Icon(Icons.call_made),
-              label: Text(session.isMaster ? 'Admin ထံ တောင်းမည်' : 'အထက်အကောင့်ထံ တောင်းမည်'))
+              label: const Text('အထက်အကောင့်ထံ တောင်းမည်'))
           : null,
       body: Column(children: [
         Padding(
@@ -311,7 +311,7 @@ class _AskUplineScreenState extends State<_AskUplineScreen> {
     final p = widget.payTo;
     final deposit = type == 'deposit';
     return Scaffold(
-      appBar: AppBar(title: Text(context.read<Session>().isMaster ? 'Admin ထံ တောင်းမည်' : 'အထက်အကောင့်ထံ တောင်းမည်')),
+      appBar: AppBar(title: const Text('အထက်အကောင့်ထံ တောင်းမည်')),
       body: ContentWidth(
         maxWidth: 640,
         child: ListView(padding: const EdgeInsets.all(14), children: [
