@@ -27,8 +27,7 @@ class _Tile {
   final Color color;
   final WidgetBuilder builder;
   final bool requests;
-  final bool slipDeletes;
-  const _Tile(this.label, this.icon, this.color, this.builder, {this.requests = false, this.slipDeletes = false});
+  const _Tile(this.label, this.icon, this.color, this.builder, {this.requests = false});
 }
 
 // Admin opens master accounts and nothing else. A master runs its own book and its own agents and
@@ -67,7 +66,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _Tile('Agents', Icons.support_agent, const Color(0xFFEA580C), (_) => const AccountsScreen(role: 'agent')),
     _Tile('Users', Icons.groups, const Color(0xFF0EA5E9), (_) => const AccountsScreen(role: 'user')),
     _Tile('ကော်မရှင်', Icons.percent, const Color(0xFFD97706), (_) => const CommissionsScreen()),
-    _Tile('စလစ်ဖျက်ရန်\n(Request Delete)', Icons.delete_sweep, const Color(0xFFDC2626), (_) => const SlipCancelRequestsScreen(), slipDeletes: true),
     _Tile('အလျော်အဆ', Icons.emoji_events, const Color(0xFFCA8A04), (_) => const PrizeRatesScreen()),
     _Tile('အလျော်အဆတွဲ', Icons.link, const Color(0xFF7C3AED), (_) => const PrizeAssignScreen()),
     _Tile('Masters', Icons.workspace_premium, const Color(0xFFBE185D), (_) => const AccountsScreen(role: 'master')),
@@ -139,6 +137,35 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text('Lotto ${session.roleName}'),
         actions: [
+          if (!session.isAdmin)
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  tooltip: 'စလစ်ဖျက်ရန် Requests',
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SlipCancelRequestsScreen()));
+                    _load();
+                  },
+                ),
+                if (slipPending > 0)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          slipPending > 99 ? '99+' : '$slipPending',
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           if (session.isMaster)
             IconButton(
               icon: const Icon(Icons.settings_outlined),
@@ -205,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
               childAspectRatio: 1.15,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              children: [for (final t in _tilesFor(session)) _TileCard(tile: t, badge: t.requests ? pending : t.slipDeletes ? slipPending : 0, onTap: () => _open(t))],
+              children: [for (final t in _tilesFor(session)) _TileCard(tile: t, badge: t.requests ? pending : 0, onTap: () => _open(t))],
             );
           }),
         ]),
