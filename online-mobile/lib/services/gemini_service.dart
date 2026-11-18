@@ -26,7 +26,7 @@ class GeminiService {
 
   // Sends [text] to Gemini and returns the formatted bet lines.
   // Throws if the key is missing or the request fails.
-  static Future<String> translateBets(String text, {String model = 'gemini-2.0-flash'}) async {
+  static Future<String> translateBets(String text, {String model = 'gemini-1.5-flash'}) async {
     final apiKey = await getApiKey();
     if (apiKey == null) throw Exception('Settings မှာ Gemini API key ထည့်ပါ');
 
@@ -62,7 +62,13 @@ class GeminiService {
         .timeout(const Duration(seconds: 20));
 
     if (resp.statusCode != 200) {
-      throw Exception('Gemini ${resp.statusCode}: ${resp.body}');
+      // Try to surface the error message from the JSON body if present.
+      String detail = resp.body;
+      try {
+        final j = jsonDecode(resp.body) as Map;
+        detail = (j['error'] as Map?)?['message'] as String? ?? resp.body;
+      } catch (_) {}
+      throw Exception('Gemini ${resp.statusCode}: $detail');
     }
     final json = jsonDecode(resp.body) as Map;
     final parts = ((json['candidates'] as List?)?.firstOrNull?['content']
