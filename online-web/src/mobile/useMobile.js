@@ -18,9 +18,10 @@ export function isEmbedded() {
 }
 
 const narrow = () => window.matchMedia?.(QUERY).matches ?? false;
+const mobileUA = () => /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent ?? '');
 
 export function useMobile() {
-  const [mobile, setMobile] = useState(() => isEmbedded() || narrow());
+  const [mobile, setMobile] = useState(() => isEmbedded() || narrow() || mobileUA());
   useEffect(() => {
     if (isEmbedded()) return undefined;
     const mq = window.matchMedia?.(QUERY);
