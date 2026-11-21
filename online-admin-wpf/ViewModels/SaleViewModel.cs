@@ -57,6 +57,7 @@ public partial class SaleViewModel : ObservableObject
 
     public ObservableCollection<UserDto> Customers { get; } = [];
     public ObservableCollection<BetTypeDto> Types { get; } = [];
+    public ObservableCollection<BetTypeDto> LedgerTypes { get; } = [];
     public ObservableCollection<CartRow> CartRows { get; } = [];
     public ObservableCollection<LedgerRow> LedgerRows { get; } = [];
     public ObservableCollection<HoldTab> HoldTabs { get; } = [];
@@ -65,6 +66,7 @@ public partial class SaleViewModel : ObservableObject
     [ObservableProperty] TermDto? _selectedTerm;
     [ObservableProperty] BetTypeDto? _ledgerType;
     [ObservableProperty] string _customerId = "";
+    [ObservableProperty] string _purchaseNote = "";
     [ObservableProperty] string _numberText = "";
     [ObservableProperty] string _unitText = "";
     [ObservableProperty] string _discountText = "0";
@@ -137,8 +139,18 @@ public partial class SaleViewModel : ObservableObject
             Task<List<UserDto>>? customersTask = _session.IsUpline
                 ? _session.Api.GetAsync<List<UserDto>>("api/users?role=user")
                 : null;
+            // A user has no file picker, so the Sale screen itself must load the active terms.
+            // Without this, a user can log in but has no term selected to place a ticket on.
+            Task<List<TermDto>>? termsTask = _session.IsUser
+                ? _session.Api.GetAsync<List<TermDto>>("api/terms?status=open")
+                : null;
             await metaTask;
             if (customersTask is not null) await customersTask;
+            if (termsTask is not null)
+            {
+                await termsTask;
+                _session.ReplaceFolderTerms(termsTask.Result);
+            }
             var meta = metaTask.Result;
             Customers.Clear();
             if (_session.IsUser) Customers.Add(_session.User);
@@ -164,9 +176,22 @@ public partial class SaleViewModel : ObservableObject
         var bt = Types.FirstOrDefault(t => t.Digits == want) ?? Types.FirstOrDefault();
         if (bt is null) return;
         ActiveTypeKey = bt.Code;
-        LedgerType = bt;
+        LedgerType = LedgerTypes.FirstOrDefault(t => t.Id == bt.Id) ?? bt;
         NumberHint = EntryParser.Hint("", bt.Digits);
         OnPropertyChanged(nameof(CanExtraSave));
+    }
+
+    void BindLedgerTypes()
+    {
+        var game = SelectedTerm?.Game ?? "";
+        var allowed = game.Contains('3')
+            ? Types.Where(t => t.Digits == 3)
+            : game.Contains('2')
+                ? Types.Where(t => t.Digits == 2)
+                : Types;
+        LedgerTypes.Clear();
+        foreach (var type in allowed) LedgerTypes.Add(type);
+        LedgerType = LedgerTypes.FirstOrDefault();
     }
 
     int Digits() => CurrentType()?.Digits ?? 2;
@@ -229,9 +254,10 @@ public partial class SaleViewModel : ObservableObject
             var full = await _session.Api.GetAsync<TermDto>($"api/terms/{listed.Id}");
             _applyingTerm = true;
             SelectedTerm = full;
-            _applyingTerm = false;
+            BindLedgerTypes();
             _session.SetActiveTerm(full);
             PickFirstType();
+            _applyingTerm = false;
             await RefreshSlipAndLedgerAsync();
             OnPropertyChanged(nameof(CartTotal));
         }
@@ -343,7 +369,11 @@ public partial class SaleViewModel : ObservableObject
                     Number = n,
                     Units = l.Unit,
                 })).ToList();
-                await _session.Api.PostAsync<object>($"api/terms/{SelectedTerm.Id}/purchases", new PurchaseRequest { Items = items });
+                await _session.Api.PostAsync<object>($"api/terms/{SelectedTerm.Id}/purchases", new PurchaseRequest
+                {
+                    Items = items,
+                    Note = string.IsNullOrWhiteSpace(PurchaseNote) ? null : PurchaseNote.Trim(),
+                });
             }
             else
             {
@@ -363,6 +393,7 @@ public partial class SaleViewModel : ObservableObject
                 await _session.Api.PostAsync<object>("api/tickets", body);
             }
             CartRows.Clear();
+            if (IsBuy) PurchaseNote = "";
             RefreshCart();
             Sounds.Play(Sound.CheckOut);
             Show(IsBuy ? "အဝယ် သိမ်းပြီး" : "Save ပြီး", false);

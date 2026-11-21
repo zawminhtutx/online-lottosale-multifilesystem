@@ -45,6 +45,10 @@ public partial class OpenFileWindow : Window
             try { DialogResult = true; }
             catch (InvalidOperationException) { Close(); }
         }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "ဖိုင် ဖွင့်ရန်", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
         finally { _opening = false; }
     }
 }

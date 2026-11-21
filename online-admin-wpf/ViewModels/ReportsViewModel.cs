@@ -32,9 +32,11 @@ public partial class ReportsViewModel : ObservableObject
     [
         new("summary", "ငွေစာရင်းရှင်းတမ်း"),
         new("ledger", "လယ်ဂျာ"),
+        new("payouts", "အလျော်အစားစာရင်း"),
     ];
     public ObservableCollection<TermDto> Terms { get; } = [];
     public ObservableCollection<SummaryRowDto> SummaryRows { get; } = [];
+    public ObservableCollection<PayoutRowDto> PayoutRows { get; } = [];
     public ObservableCollection<LedgerBoardRow> BoardRows { get; } = [];
     public List<LedgerBoardColumn> BoardColumns { get; private set; } = [];
 
@@ -45,6 +47,8 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] string _title = "";
     [ObservableProperty] string? _message;
     [ObservableProperty] bool _showSummary = true;
+    [ObservableProperty] bool _showLedger;
+    [ObservableProperty] bool _showPayout;
 
     public ReportsViewModel(Session session)
     {
@@ -55,7 +59,13 @@ public partial class ReportsViewModel : ObservableObject
     public void BindTerms()
     {
         Terms.Clear();
-        foreach (var t in _session.FolderTerms) Terms.Add(t);
+        // Only terms in the currently open file that can be reported on: active, closed, or settled.
+        // Draft, drawn and cancelled terms are intentionally not selectable here.
+        var folderId = _session.Folder?.Id;
+        foreach (var t in _session.FolderTerms.Where(t =>
+                     (folderId is null || t.FolderId == folderId)
+                     && (t.Status is "open" or "closed" or "settled")))
+            Terms.Add(t);
         SelectedTerm = _session.ActiveTerm is { } cur
             ? Terms.FirstOrDefault(t => t.Id == cur.Id)
             : Terms.FirstOrDefault();
@@ -71,6 +81,8 @@ public partial class ReportsViewModel : ObservableObject
             if (SelectedReport?.Key == "ledger")
             {
                 ShowSummary = false;
+                ShowPayout = false;
+                ShowLedger = true;
                 var digits = SelectedTerm.Game.Contains('3') ? 3 : 2;
                 var meta = await _session.Api.GetAsync<MetaDto>("api/meta");
                 var type = meta.BetTypes.FirstOrDefault(b => b.IsActive != 0 && b.Digits == digits);
@@ -83,9 +95,21 @@ public partial class ReportsViewModel : ObservableObject
                     ? $"{SelectedTerm.Description} · ၃လုံး လယ်ဂျာ (000–999)"
                     : $"{SelectedTerm.Description} · ၂လုံး လယ်ဂျာ (00–99)";
             }
+            else if (SelectedReport?.Key == "payouts")
+            {
+                ShowSummary = false;
+                ShowLedger = false;
+                ShowPayout = true;
+                var rows = await _session.Api.GetAsync<List<PayoutRowDto>>($"api/reports/payouts?term_id={SelectedTerm.Id}");
+                PayoutRows.Clear();
+                foreach (var row in rows) PayoutRows.Add(row);
+                Title = $"{SelectedTerm.Description} · အလျော်အစားစာရင်း";
+            }
             else
             {
                 ShowSummary = true;
+                ShowLedger = false;
+                ShowPayout = false;
                 var rows = await _session.Api.GetAsync<List<SummaryRowDto>>($"api/reports/summary?term_id={SelectedTerm.Id}&group_by=user");
                 SummaryRows.Clear();
                 foreach (var r in rows) SummaryRows.Add(r);
@@ -140,5 +164,65 @@ public partial class ReportsViewModel : ObservableObject
         totalCells[^1] = Fmt(pageTotal);
         BoardRows.Add(new LedgerBoardRow { Cells = totalCells, IsTotal = true });
         BoardChanged?.Invoke();
+    }
+
+    // Text form used by Dot View (receipt-width) and Report View (page preview).  It is built
+    // only from the report that was last loaded with View, so both previews match the screen.
+    public string PrintText()
+    {
+        var lines = new List<string> { Title, new string('-', 56) };
+        if (ShowLedger)
+        {
+            lines.Add(string.Join("  ", BoardColumns.Select(c => c.Header)));
+            lines.AddRange(BoardRows.Select(r => string.Join("  ", r.Cells)));
+        }
+        else if (ShowPayout)
+        {
+            lines.Add("User         Slip          Type  Number  Unit  Payout");
+            lines.AddRange(PayoutRows.Select(r => $"{r.Username,-12} {r.SlipNo,-13} {r.BetType,-5} {r.Number,-7} {r.Units,4:N0}  {r.WinAmount,10:N0}"));
+        }
+        else if (ShowSummary)
+        {
+            lines.Add("User         Tickets       Gross         Net      Payout      Profit");
+            lines.AddRange(SummaryRows.Select(r => $"{r.Username,-12} {r.Tickets,7:N0} {r.Gross,11:N0} {r.Net,11:N0} {r.Payout,11:N0} {r.Profit,11:N0}"));
+        }
+        return lines.Count > 2 ? string.Join(Environment.NewLine, lines) : "";
+    }
+
+    // POS-style Dot View for a 2D ledger: two consecutive numbers per line, followed by its
+    // break/total footer. This is the compact layout used on the receipt printer.
+    public string DotText()
+    {
+        if (!ShowLedger || BoardRows.Count == 0 || BoardRows[0].Cells.Count != 20) return PrintText();
+
+        var amounts = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        foreach (var row in BoardRows.Where(r => !r.IsTotal))
+            for (var i = 0; i + 1 < row.Cells.Count; i += 2)
+                if (decimal.TryParse(row.Cells[i + 1], NumberStyles.Number, CultureInfo.CurrentCulture, out var value))
+                    amounts[row.Cells[i]] = value;
+
+        var lines = new List<string>
+        {
+            DateTime.Now.ToString("MM/dd/yyyy, h:mm:ss tt", CultureInfo.GetCultureInfo("en-US")).PadLeft(31),
+            (SelectedTerm?.Description ?? "New").PadLeft(22),
+            "        ------------------------",
+        };
+        for (var i = 0; i < 100; i += 2)
+        {
+            var left = i.ToString("00", CultureInfo.InvariantCulture);
+            var right = (i + 1).ToString("00", CultureInfo.InvariantCulture);
+            var leftAmount = amounts.GetValueOrDefault(left);
+            var rightAmount = amounts.GetValueOrDefault(right);
+            lines.Add($"        {left}-{leftAmount,8:N0}|{right}-{rightAmount,8:N0}");
+        }
+        var total = amounts.Values.Sum();
+        var brk = SelectedTerm?.Limits.FirstOrDefault()?.MaxUnits ?? 0;
+        var percent = brk <= 0 ? 0 : Math.Round(total * 100m / (brk * 100m), 0);
+        lines.Add("        ------------------------");
+        lines.Add($"         BREAK-{brk:N0}");
+        lines.Add($"         Total-{total:N0}({percent:N0}%)");
+        lines.Add("");
+        lines.Add("        Page-1");
+        return string.Join(Environment.NewLine, lines);
     }
 }

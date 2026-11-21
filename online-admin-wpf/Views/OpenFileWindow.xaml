@@ -6,6 +6,8 @@
     <DockPanel>
         <Border DockPanel.Dock="Right" Width="150" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}" BorderThickness="1,0,0,0" Padding="12,14">
             <StackPanel>
+                <Button Style="{StaticResource PlainButton}" Padding="10,8" Margin="0,0,0,10" Command="{Binding CreateNewCommand}"
+                        IsEnabled="{Binding CanCreateNew}" ToolTip="Master account only" Content="Create New"/>
                 <Button Style="{StaticResource PrimaryButton}" Padding="10,8" Margin="0,0,0,10" IsDefault="True" Click="Ok_Click" Content="ဖွင့်မည်"/>
                 <Button Style="{StaticResource PlainButton}" Padding="10,8" IsCancel="True" Click="Cancel_Click" Content="Cancel"/>
             </StackPanel>
@@ -13,29 +15,48 @@
         <Border DockPanel.Dock="Top" Padding="14,10,14,8" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
             <StackPanel>
                 <TextBlock FontSize="16" FontWeight="Bold" Text="ဖိုင် ဖွင့်ရန်"/>
-                <TextBlock Text="{Binding WhoText}" Foreground="{StaticResource Muted}" Margin="0,2,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                    <TextBlock Text="User: " Foreground="{StaticResource Muted}"/>
+                    <TextBlock Text="{Binding WhoText}" Foreground="{StaticResource Accent}" FontWeight="SemiBold"/>
+                </StackPanel>
                 <TextBlock Text="{Binding Message}" Foreground="{StaticResource Bad}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"
                            Visibility="{Binding Message, Converter={StaticResource NullToCollapsed}}"/>
             </StackPanel>
         </Border>
-        <ListBox ItemsSource="{Binding Folders}" SelectedItem="{Binding Selected}" Margin="10" BorderBrush="{StaticResource Line}" FontSize="15"
-                 MouseDoubleClick="ItemList_MouseDoubleClick">
-            <ListBox.ItemContainerStyle>
-                <Style TargetType="ListBoxItem">
-                    <Setter Property="Padding" Value="10,8"/>
-                </Style>
-            </ListBox.ItemContainerStyle>
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel>
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource Accent}"/>
-                        <TextBlock FontSize="12" Foreground="{StaticResource Muted}">
-                            <Run Text="{Binding TermCount, Mode=OneWay}"/>
-                            <Run Text=" အပါတ်စဥ်"/>
-                        </TextBlock>
-                    </StackPanel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="130"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Recent Files" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="2,0,0,5"/>
+            <ListBox Grid.Row="1" ItemsSource="{Binding RecentFolders}" SelectedItem="{Binding Selected}" BorderBrush="{StaticResource Line}" FontSize="15"
+                     MouseDoubleClick="ItemList_MouseDoubleClick">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem"><Setter Property="Padding" Value="10,6"/></Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource Accent}"/></DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Grid.Row="2" Text="All Files" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="2,12,0,5"/>
+            <ListBox Grid.Row="3" ItemsSource="{Binding Folders}" SelectedItem="{Binding Selected}" BorderBrush="{StaticResource Line}" FontSize="15"
+                     MouseDoubleClick="ItemList_MouseDoubleClick">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem"><Setter Property="Padding" Value="10,8"/></Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource Accent}"/>
+                            <TextBlock FontSize="12" Foreground="{StaticResource Muted}">
+                                <Run Text="{Binding TermCount, Mode=OneWay}"/><Run Text=" အပါတ်စဥ်"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
     </DockPanel>
 </Window>

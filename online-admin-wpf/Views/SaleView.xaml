@@ -271,11 +271,11 @@
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="12,8,12,6">
-                            <TextBlock Style="{StaticResource Caption}">
+                            <TextBlock Style="{StaticResource Caption}" Visibility="{Binding IsSale, Converter={StaticResource BoolToVis}}">
                                 <Run Text="Customer"/>
                                 <Run Text="{Binding CustomerName, Mode=OneWay}" Foreground="{StaticResource Fg}" FontWeight="Bold"/>
                             </TextBlock>
-                            <Grid Margin="0,0,0,8">
+                            <Grid Margin="0,0,0,8" Visibility="{Binding IsSale, Converter={StaticResource BoolToVis}}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -296,6 +296,11 @@
                                         Padding="12,2" FontSize="18" Margin="6,0,0,0" Command="{Binding AddCustomerCommand}"
                                         Visibility="{Binding CanAddCustomer, Converter={StaticResource BoolToVis}}"/>
                             </Grid>
+                            <StackPanel Margin="0,0,0,8" Visibility="{Binding IsBuy, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Note" Style="{StaticResource Caption}"/>
+                                <TextBox Text="{Binding PurchaseNote, UpdateSourceTrigger=PropertyChanged}" MaxLength="500"
+                                         FontSize="16" Padding="8,5" ToolTip="အဝယ်မှတ်ချက်"/>
+                            </StackPanel>
 
                             <!-- Entry modes, as in the web app: L sweep, R pattern, U fixed unit, Auto (F6) -->
                             <UniformGrid Columns="4" Margin="0,0,0,6">
@@ -314,22 +319,6 @@
                                 <TextBlock Text="{Binding NumberHint}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource OnAccent}"
                                            HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MinHeight="22"/>
                             </Border>
-
-                            <!-- The type being typed (one slip can mix types); 2D at start. Solid blue when this tab's type. -->
-                            <UniformGrid Columns="4" Margin="0,0,0,6">
-                                <ToggleButton Content="2D" Style="{StaticResource ModeToggle}" ToolTip="2D (Alt+2)"
-                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=2D}"
-                                              Command="{Binding PickTypeCommand}" CommandParameter="2D"/>
-                                <ToggleButton Content="3D" Style="{StaticResource ModeToggle}" ToolTip="3D (Alt+3)"
-                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=3D}"
-                                              Command="{Binding PickTypeCommand}" CommandParameter="3D"/>
-                                <ToggleButton Content="T" ToolTip="TOTO (Alt+T)" Style="{StaticResource ModeToggle}"
-                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=T}"
-                                              Command="{Binding PickTypeCommand}" CommandParameter="T"/>
-                                <ToggleButton Content="4D" Style="{StaticResource ModeToggle}" ToolTip="4D (Alt+4)"
-                                              IsChecked="{Binding ActiveTypeKey, Mode=OneWay, Converter={StaticResource EqualsTo}, ConverterParameter=4D}"
-                                              Command="{Binding PickTypeCommand}" CommandParameter="4D"/>
-                            </UniformGrid>
 
                             <!-- Number and Unit side by side; the discount override right under Unit, 4D's Big / Small under Number -->
                             <Grid Margin="0,0,0,6">
@@ -579,7 +568,7 @@
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Style="{StaticResource PanelHead}">
                         <DockPanel>
-                            <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Types}" SelectedItem="{Binding LedgerType}"
+                            <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding LedgerTypes}" SelectedItem="{Binding LedgerType}"
                                       DisplayMemberPath="Description" MinWidth="110" FontSize="14" Padding="6,3" Focusable="False"
                                       ToolTip="ကြည့်မယ့် Type ရွေးပါ"/>
                             <TextBlock FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Text="လယ်ဂျာ"/>
@@ -657,8 +646,9 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <TextBlock Text="{Binding CustomerStatus}" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="120" MaxWidth="260" TextTrimming="CharacterEllipsis"/>
-                <Rectangle Style="{StaticResource StatusSep}"/>
+                <TextBlock Text="{Binding CustomerStatus}" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="120" MaxWidth="260" TextTrimming="CharacterEllipsis"
+                           Visibility="{Binding IsSale, Converter={StaticResource BoolToVis}}"/>
+                <Rectangle Style="{StaticResource StatusSep}" Visibility="{Binding IsSale, Converter={StaticResource BoolToVis}}"/>
 
                 <ToggleButton Style="{StaticResource StatusToggle}" IsChecked="{Binding PrintOnCheckout}" ToolTip="ပရင်တာထုတ် (F8)">
                     <TextBlock Text="&#xE749;" FontFamily="{StaticResource IconFont}" FontSize="16"/>

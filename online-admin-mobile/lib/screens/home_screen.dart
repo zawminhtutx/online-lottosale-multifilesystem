@@ -11,6 +11,7 @@ import 'commissions_screen.dart';
 import 'prize_assign_screen.dart';
 import 'prize_rates_screen.dart';
 import 'profile_screen.dart';
+import 'ledger_email_screen.dart';
 import 'report_screen.dart';
 import 'slip_cancel_requests_screen.dart';
 import 'slips_screen.dart';
@@ -165,6 +166,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
               ],
+            ),
+          if (session.isMaster)
+            IconButton(
+              icon: const Icon(Icons.email_outlined),
+              tooltip: 'Ledger Email',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LedgerEmailScreen())),
             ),
           if (session.isMaster)
             IconButton(

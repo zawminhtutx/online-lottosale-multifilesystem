@@ -20,6 +20,8 @@
                             <TextBlock x:Name="ServerText" Foreground="{StaticResource OnTabBar}" FontFamily="{StaticResource MonoFont}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
+                    <Button x:Name="LedgerEmailButton" Content="Ledger Email" Click="LedgerEmailButton_Click" Template="{StaticResource BarLinkButton}" Cursor="Hand"
+                            Foreground="{StaticResource OnTabBar}" FontWeight="SemiBold" Margin="10,0,0,0"/>
                     <Button x:Name="LogoutButton" Click="LogoutButton_Click" Template="{StaticResource BarLinkButton}" Cursor="Hand"
                             Foreground="{StaticResource OnTabBar}" FontWeight="SemiBold">
                         <TextBlock x:Name="UserText"/>

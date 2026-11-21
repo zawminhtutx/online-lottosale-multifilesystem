@@ -32,6 +32,33 @@ public partial class ReportsView : UserControl
             PaintBoard();
     }
 
+    void DotView_Click(object sender, RoutedEventArgs e) => ShowPreview("Dot View", dot: true);
+
+    void ReportView_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null) return;
+        if (string.IsNullOrWhiteSpace(_vm.PrintText()))
+        {
+            _vm.Message = "Report ကို View လုပ်ပြီးမှ ကြည့်လို့ရပါသည်";
+            return;
+        }
+        var owner = Window.GetWindow(this);
+        if (owner is not null) PageViewDialog.Show(owner, _vm.Title, _vm);
+    }
+
+    void ShowPreview(string mode, bool dot = false)
+    {
+        if (_vm is null) return;
+        var text = dot ? _vm.DotText() : _vm.PrintText();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            _vm.Message = "Report ကို View လုပ်ပြီးမှ ကြည့်လို့ရပါသည်";
+            return;
+        }
+        var owner = Window.GetWindow(this);
+        if (owner is not null) ReportPreviewDialog.Show(owner, mode, _vm.Title, text);
+    }
+
     void PaintBoard()
     {
         if (_vm is null || BoardList is null) return;

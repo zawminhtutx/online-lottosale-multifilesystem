@@ -30,4 +30,11 @@ public partial class LoginWindow : Window
         try { DialogResult = true; }
         catch (InvalidOperationException) { Close(); }
     }
+
+    void ServerSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var show = ServerPanel.Visibility != Visibility.Visible;
+        ServerPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        ServerDisplay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+    }
 }

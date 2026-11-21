@@ -14,9 +14,11 @@ public sealed class UserDto
     public string Role { get; set; } = "";
     public decimal Balance { get; set; }
     public int Unlimited { get; set; }
+    public int PrizeSetId { get; set; }
     public int SaleOver { get; set; }
     public string Status { get; set; } = "active";
     public string? Phone { get; set; }
+    public string? LedgerRecipients { get; set; }
 }
 
 public sealed class BetTypeDto
@@ -206,6 +208,19 @@ public sealed class SummaryRowDto
     public decimal Profit { get; set; }
 }
 
+public sealed class PayoutRowDto
+{
+    public int UserId { get; set; }
+    public string Username { get; set; } = "";
+    public string? UserName { get; set; }
+    public string SlipNo { get; set; } = "";
+    public string BetType { get; set; } = "";
+    public string Number { get; set; } = "";
+    public int Units { get; set; }
+    public decimal Multiplier { get; set; }
+    public decimal WinAmount { get; set; }
+}
+
 public sealed class PurchaseItem
 {
     public int BetTypeId { get; set; }
@@ -216,4 +231,5 @@ public sealed class PurchaseItem
 public sealed class PurchaseRequest
 {
     public List<PurchaseItem> Items { get; set; } = [];
+    public string? Note { get; set; }
 }

@@ -1,0 +1,26 @@
+<Window x:Class="OnlineLotto.Wpf.Views.LedgerEmailDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ledger Email" Style="{StaticResource AppWindow}" Width="540" Height="460"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Border BorderBrush="{StaticResource Accent}" BorderThickness="0,4,0,0" Padding="26,20">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                <Button Content="မလုပ်တော့ပါ" Style="{StaticResource PlainButton}" IsCancel="True" MinWidth="110" Margin="0,0,10,0"/>
+                <Button Content="သိမ်းမည်" Style="{StaticResource PrimaryButton}" IsDefault="True" MinWidth="110" Click="Save_Click"/>
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="Ledger Email" Style="{StaticResource Heading}" Margin="0,0,0,8"/>
+                <TextBlock Text="အပါတ်စဉ်ပိတ်ချိန်တွင် လယ်ဂျာပို့မည့် email list ဖြစ်ပါသည်။ User/Agent email များသို့ အလိုအလျောက် မပို့တော့ပါ။" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,12"/>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="EmailBox" FontSize="15" Padding="8,5" KeyDown="EmailBox_KeyDown"/>
+                    <Button Grid.Column="2" Content="Add" Style="{StaticResource PrimaryButton}" Click="Add_Click"/>
+                </Grid>
+                <ListBox x:Name="EmailList" MinHeight="190" FontSize="15"/>
+                <Button Content="Remove" Style="{StaticResource PlainButton}" HorizontalAlignment="Right" Margin="0,8,0,0" Padding="16,6" Click="Remove_Click"/>
+                <TextBlock x:Name="ErrorText" Foreground="{StaticResource Bad}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</Window>

@@ -32,9 +32,10 @@ public partial class NewFolderDialog : Window
         Loaded += (_, _) => NameBox.Focus();
     }
 
-    public static NewFolderRequest? Ask(Window owner, IReadOnlyList<TermTemplateDto> templates)
+    public static NewFolderRequest? Ask(Window? owner, IReadOnlyList<TermTemplateDto> templates)
     {
-        var w = new NewFolderDialog(templates) { Owner = owner };
+        var w = new NewFolderDialog(templates);
+        if (owner is not null) w.Owner = owner;
         return w.ShowDialog() == true ? w.Result : null;
     }
 

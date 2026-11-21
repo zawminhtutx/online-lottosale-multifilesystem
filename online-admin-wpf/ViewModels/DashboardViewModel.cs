@@ -114,7 +114,9 @@ public partial class DashboardViewModel : ObservableObject
         if (pick is not null) _session.SetActiveTerm(pick);
     }
 
-    bool VisibleTerm(TermDto t) => !_session.IsUser || t.Status == "open";
+    // The dashboard selector is the sales workspace selector.  A draft term has not been
+    // activated yet, so it must be opened from the Terms screen first—not picked here.
+    bool VisibleTerm(TermDto t) => t.Status == "open";
 
     [RelayCommand]
     public async Task LoadAsync()

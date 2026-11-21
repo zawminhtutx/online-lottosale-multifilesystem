@@ -17,6 +17,7 @@ public partial class MainWindow : Window
         _session = session;
         ServerText.Text = session.ServerUrl.Replace("https://", "").Replace("http://", "");
         UserText.Text = $"{session.User.Username}  Logout";
+        LedgerEmailButton.Visibility = session.IsMaster ? Visibility.Visible : Visibility.Collapsed;
         StatusText.Text = session.Folder is { } f ? $"{session.User.Role} · {f.Name}" : session.User.Role;
         BuyTab.Visibility = session.IsBook ? Visibility.Visible : Visibility.Collapsed;
         ReportsTab.Visibility = session.IsUpline ? Visibility.Visible : Visibility.Collapsed;
@@ -37,27 +38,36 @@ public partial class MainWindow : Window
 
     async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        _dash = new DashboardViewModel(_session);
-        _dash.SwitchFileRequested += SwitchFile;
-        _dash.ToolRequested += OpenTool;
-        DashScreen.DataContext = _dash;
-        _dash.ShowCachedTerms();
-        _sale = new SaleViewModel(_session);
-        SaleScreen.Attach(_sale);
-        _buy = new SaleViewModel(_session, buy: true);
-        BuyScreen.Attach(_buy);
-        _reports = new ReportsViewModel(_session);
-        ReportsScreen.Attach(_reports);
-        _reports.BindTerms();
-        var dashLoad = _dash.LoadCommand.ExecuteAsync(null);
-        var saleLoad = _sale.LoadAsync();
-        var buyLoad = _session.IsBook ? _buy.LoadAsync() : Task.CompletedTask;
-        await Task.WhenAll(dashLoad, saleLoad, buyLoad);
+        try
+        {
+            _dash = new DashboardViewModel(_session);
+            _dash.SwitchFileRequested += SwitchFile;
+            _dash.ToolRequested += OpenTool;
+            DashScreen.DataContext = _dash;
+            _dash.ShowCachedTerms();
+            _sale = new SaleViewModel(_session);
+            SaleScreen.Attach(_sale);
+            _buy = new SaleViewModel(_session, buy: true);
+            BuyScreen.Attach(_buy);
+            _reports = new ReportsViewModel(_session);
+            ReportsScreen.Attach(_reports);
+            _reports.BindTerms();
+            var dashLoad = _dash.LoadCommand.ExecuteAsync(null);
+            var saleLoad = _sale.LoadAsync();
+            var buyLoad = _session.IsBook ? _buy.LoadAsync() : Task.CompletedTask;
+            await Task.WhenAll(dashLoad, saleLoad, buyLoad);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Lotto Admin", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     void Tabs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        if (!IsLoaded) return;
+        // SelectionChanged bubbles from ComboBoxes inside a tab.  Only react when the top-level
+        // tab itself changes; otherwise choosing a report term immediately resets that choice.
+        if (!IsLoaded || !ReferenceEquals(e.Source, Tabs)) return;
         if (Tabs.SelectedItem == SaleTab) SaleScreen.FocusCustomerOnShow();
         if (Tabs.SelectedItem == ReportsTab) _reports?.BindTerms();
     }
@@ -113,6 +123,18 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(this, ex.Message, "Lotto Admin");
         }
+    }
+
+    async void LedgerEmailButton_Click(object sender, RoutedEventArgs e)
+    {
+        var recipients = LedgerEmailDialog.Ask(this, _session.User.LedgerRecipients);
+        if (recipients is null) return;
+        try
+        {
+            _session.User = await _session.Api.PatchAsync<UserDto>($"api/users/{_session.User.Id}", new { ledger_recipients = recipients });
+            MessageBox.Show(this, "Ledger email list ကို သိမ်းပြီးပါပြီ", "Ledger Email");
+        }
+        catch (ApiException ex) { MessageBox.Show(this, ex.Message, "Ledger Email", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
     async Task CreateFolderAsync()

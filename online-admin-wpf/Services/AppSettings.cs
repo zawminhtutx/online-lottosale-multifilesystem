@@ -5,8 +5,11 @@ namespace OnlineLotto.Wpf.Services;
 
 public sealed class AppSettings
 {
-    public string ServerUrl { get; set; } = "https://online-lottosale-multifilesystem.onrender.com";
+    public const string ProductionServerUrl = "https://online-lottosale-multifilesystem.onrender.com";
+
+    public string ServerUrl { get; set; } = ProductionServerUrl;
     public string Username { get; set; } = "";
+    public List<RecentFolderSetting> RecentFolders { get; set; } = [];
 
     public string SlipPrinter { get; set; } = "";
     public string ReportPrinter { get; set; } = "";
@@ -41,10 +44,12 @@ public sealed class AppSettings
         }
         catch { settings = new(); }
         // Older installs pointed at the previous host or a computer on the desk.
-        if (settings.ServerUrl is "https://online-lottosale.onrender.com"
+        // Canonicalize first so an old value with a trailing slash migrates too.
+        var oldServer = settings.ServerUrl.Trim().TrimEnd('/').ToLowerInvariant();
+        if (oldServer is "https://online-lottosale.onrender.com"
             or "http://10.0.2.2:3000" or "http://127.0.0.1:3000" or "http://localhost:3000")
         {
-            settings.ServerUrl = "https://online-lottosale-multifilesystem.onrender.com";
+            settings.ServerUrl = ProductionServerUrl;
             settings.Save();
         }
         return settings;
@@ -56,4 +61,41 @@ public sealed class AppSettings
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
     }
+
+    public IReadOnlyList<RecentFolderSetting> RecentFor(string serverUrl, string username) =>
+        RecentFolders
+            .Where(x => SameServer(x.ServerUrl, serverUrl)
+                && string.Equals(x.Username, username, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.OpenedAt)
+            .Take(8)
+            .ToList();
+
+    public void RememberFolder(string serverUrl, string username, FolderDto folder)
+    {
+        RecentFolders.RemoveAll(x => SameServer(x.ServerUrl, serverUrl)
+            && string.Equals(x.Username, username, StringComparison.OrdinalIgnoreCase)
+            && x.FolderId == folder.Id);
+        RecentFolders.Add(new RecentFolderSetting
+        {
+            ServerUrl = serverUrl.Trim().TrimEnd('/'),
+            Username = username,
+            FolderId = folder.Id,
+            Name = folder.Name,
+            OpenedAt = DateTime.UtcNow,
+        });
+        RecentFolders = RecentFolders.OrderByDescending(x => x.OpenedAt).Take(40).ToList();
+        Save();
+    }
+
+    static bool SameServer(string? left, string? right) =>
+        string.Equals(left?.Trim().TrimEnd('/'), right?.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+}
+
+public sealed class RecentFolderSetting
+{
+    public string ServerUrl { get; set; } = "";
+    public string Username { get; set; } = "";
+    public int FolderId { get; set; }
+    public string Name { get; set; } = "";
+    public DateTime OpenedAt { get; set; }
 }

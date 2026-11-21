@@ -10,23 +10,24 @@
         </Grid.ColumnDefinitions>
         <Border Background="{StaticResource Bar}" Padding="48">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Bottom">
+                <StackPanel x:Name="ServerDisplay" DockPanel.Dock="Bottom" Visibility="Collapsed">
                     <TextBlock Text="{Binding ServerUrl}" Foreground="{StaticResource OnBar}" FontFamily="{StaticResource MonoFont}" FontSize="13"/>
                     <TextBlock Text="Online API" Foreground="{StaticResource OnBarDim}" FontSize="12" Margin="0,8,0,0"/>
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="Lotto Admin" Foreground="{StaticResource OnBar}" FontSize="34" FontWeight="Bold"/>
-                    <TextBlock Text="Login, Dashboard, Sale — offline အရောင်း UI အတိုင်း" Foreground="{StaticResource OnBarDim}"
-                               FontSize="16" TextWrapping="Wrap" Margin="0,10,0,0" LineHeight="28"/>
                 </StackPanel>
             </DockPanel>
         </Border>
         <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
-            <Border Style="{StaticResource PanelBorder}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="30" Padding="10">
-                <StackPanel Width="380" VerticalAlignment="Center" Margin="20">
+            <Grid>
+                <Border Style="{StaticResource PanelBorder}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="30" Padding="10">
+                    <StackPanel Width="380" VerticalAlignment="Center" Margin="20">
                     <TextBlock Text="Login ဝင်ရန်" Style="{StaticResource Heading}" Margin="0,0,0,18"/>
-                    <TextBlock Text="Server" Style="{StaticResource Caption}"/>
-                    <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+                    <StackPanel x:Name="ServerPanel" Visibility="Collapsed">
+                        <TextBlock Text="Server" Style="{StaticResource Caption}"/>
+                        <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+                    </StackPanel>
                     <TextBlock Text="Username" Style="{StaticResource Caption}"/>
                     <TextBox x:Name="UsernameBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
                     <TextBlock Text="Password" Style="{StaticResource Caption}"/>
@@ -50,8 +51,13 @@
                             </TextBlock.Style>
                         </TextBlock>
                     </Button>
-                </StackPanel>
-            </Border>
+                    </StackPanel>
+                </Border>
+                <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,20,0" Padding="9,7"
+                        Style="{StaticResource PlainButton}" ToolTip="Server settings" Click="ServerSettings_Click">
+                    <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="18" Foreground="{StaticResource Accent}"/>
+                </Button>
+            </Grid>
         </ScrollViewer>
     </Grid>
 </Window>

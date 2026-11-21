@@ -50,6 +50,13 @@ public partial class LoginViewModel : ObservableObject
             Session = new Session { Api = api, Token = res.Token, User = res.User, ServerUrl = api.BaseUrl };
         }
         catch (ApiException ex) { Error = ex.Message; }
+        catch (Exception)
+        {
+            // A VPN/proxy can return a non-API page or interrupt TLS before ApiClient can turn it
+            // into an ApiException. Keep the login window open and give the operator a retryable
+            // message instead of letting the dispatcher close the application.
+            Error = "Server ကို ချိတ်ဆက်လို့ မရပါ — internet/VPN နှင့် Server setting ကို စစ်ပါ";
+        }
         finally { Busy = false; }
     }
 }

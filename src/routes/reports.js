@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { all, db, one } from '../db.js';
 import { UPLINE_ROLES, loadViewableUser, readScope, requireRole, userScope } from '../auth.js';
-import { visibleOwnerSql } from '../books.js';
+import { assertTermVisible, visibleOwnerSql } from '../books.js';
+import { notFound } from '../errors.js';
 
 export const router = Router();
 
@@ -66,6 +67,26 @@ router.get('/summary', requireRole(...UPLINE_ROLES), async (req, res) => {
       args
     )
   );
+});
+
+// One row per winning number after results have been settled.  This is the payout sheet shown to
+// masters / agents: it keeps the winning bettor, slip and exact winning line together.
+router.get('/payouts', requireRole(...UPLINE_ROLES), async (req, res) => {
+  const { term_id: termId } = z.object({ term_id: z.coerce.number().int().positive() }).parse(req.query);
+  const term = await one(db, 'SELECT id, folder_id FROM terms WHERE id = ?', [termId]);
+  if (!term) throw notFound('Term not found');
+  await assertTermVisible(db, req.user, term);
+  const scope = readScope(req.user, 't.user_id');
+  res.json(await all(
+    db,
+    `SELECT u.id AS user_id, u.username, u.name AS user_name, t.slip_no,
+            bt.code AS bet_type, ti.number, ti.units, ti.multiplier, ti.win_amount
+     FROM ticket_items ti JOIN tickets t ON t.id = ti.ticket_id
+     JOIN users u ON u.id = t.user_id JOIN bet_types bt ON bt.id = ti.bet_type_id
+     WHERE ti.term_id = ? AND ti.is_winner = 1 AND ${scope.sql}
+     ORDER BY u.username, t.slip_no, ti.serial`,
+    [termId, ...scope.args]
+  ));
 });
 
 // Betting per term (the user apps' စာရင်း page). By default the signed-in account's own; with

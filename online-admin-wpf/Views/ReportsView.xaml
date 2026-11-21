@@ -20,10 +20,26 @@
                     <Border Background="{StaticResource Accent}" CornerRadius="4" Padding="6,3" Margin="0,0,0,6">
                         <TextBlock Text="အပါတ်စဥ်" Foreground="{StaticResource OnAccent}" FontWeight="Bold" HorizontalAlignment="Center"/>
                     </Border>
-                    <ComboBox ItemsSource="{Binding Terms}" SelectedItem="{Binding SelectedTerm}" DisplayMemberPath="Description" FontSize="15" Padding="8,4"/>
+                    <ComboBox ItemsSource="{Binding Terms}" SelectedItem="{Binding SelectedTerm}" FontSize="15" Padding="8,4">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Description}"/>
+                                    <TextBlock Text="  (" Foreground="{StaticResource Muted}"/>
+                                    <TextBlock Text="{Binding Status}" Foreground="{StaticResource Muted}"/>
+                                    <TextBlock Text=")" Foreground="{StaticResource Muted}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
-                <Button Style="{StaticResource PrimaryButton}" Padding="18,10" Margin="14,24,0,0" VerticalAlignment="Top"
-                        Command="{Binding ViewCommand}" Content="View"/>
+                <Grid Width="290" Margin="14,0,0,0" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Button Style="{StaticResource PrimaryButton}" Padding="12,8" Command="{Binding ViewCommand}" Content="View"/>
+                    <Button Grid.Column="2" Style="{StaticResource PlainButton}" Padding="12,8" Click="DotView_Click" Content="Dot View"/>
+                    <Button Grid.Column="2" Grid.Row="2" Style="{StaticResource PlainButton}" Padding="12,8" Click="ReportView_Click" Content="Report View"/>
+                </Grid>
             </StackPanel>
         </Border>
         <Border Grid.Row="2" Style="{StaticResource PanelBorder}">
@@ -44,10 +60,24 @@
                         </GridView>
                     </ListView.View>
                 </ListView>
+                <ListView ItemsSource="{Binding PayoutRows}" FontSize="15" BorderThickness="0"
+                          Visibility="{Binding ShowPayout, Converter={StaticResource BoolToVis}}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="User" Width="130" DisplayMemberBinding="{Binding Username}"/>
+                            <GridViewColumn Header="Slip" Width="150" DisplayMemberBinding="{Binding SlipNo}"/>
+                            <GridViewColumn Header="Type" Width="70" DisplayMemberBinding="{Binding BetType}"/>
+                            <GridViewColumn Header="ပေါက်ဂဏန်း" Width="100" DisplayMemberBinding="{Binding Number}"/>
+                            <GridViewColumn Header="Unit" Width="80" DisplayMemberBinding="{Binding Units}"/>
+                            <GridViewColumn Header="အဆ" Width="80" DisplayMemberBinding="{Binding Multiplier}"/>
+                            <GridViewColumn Header="အလျော်" Width="120" DisplayMemberBinding="{Binding WinAmount}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
                 <ListView x:Name="BoardList" FontFamily="{StaticResource MonoFont}" FontSize="13" BorderThickness="0"
                           VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                          Visibility="{Binding ShowSummary, Converter={StaticResource InverseBoolToVis}}">
+                          Visibility="{Binding ShowLedger, Converter={StaticResource BoolToVis}}">
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
                             <Setter Property="MinHeight" Value="22"/>
