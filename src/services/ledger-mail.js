@@ -3,7 +3,7 @@ import { all, db } from '../db.js';
 import { config } from '../config.js';
 
 // After a master's term reaches its close time, email the 00-99 and 000-999 ledger once to the
-// agents and users that master marked (ledger_mail) and who have an email address.
+// recipient addresses entered by that master.  Account email addresses are never recipients.
 
 let warned = false;
 
@@ -43,21 +43,11 @@ async function numberLines(client, termId, betTypeId, digits) {
 }
 
 async function recipients(client, masterId) {
-  return all(
-    client,
-    `WITH RECURSIVE sub(id) AS (
-       SELECT id FROM users WHERE parent_id = ?
-       UNION ALL
-       SELECT u.id FROM users u JOIN sub s ON u.parent_id = s.id
-     )
-     SELECT id, email, username, name, role FROM users
-     WHERE id IN (SELECT id FROM sub)
-       AND ledger_mail = 1
-       AND email IS NOT NULL AND email <> ''
-       AND role IN ('agent', 'user')
-       AND status = 'active'`,
-    [masterId]
-  );
+  const master = await all(client,
+    `SELECT ledger_recipients FROM users WHERE id = ? AND role = 'master' AND status = 'active'`, [masterId]);
+  const value = String(master[0]?.ledger_recipients ?? '');
+  return [...new Set(value.split(/[;,\r\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean))]
+    .map((email) => ({ email }));
 }
 
 export async function mailClosedLedgers(client = db) {

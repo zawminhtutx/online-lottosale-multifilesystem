@@ -104,6 +104,14 @@ router.put('/commissions', requireRole(...UPLINE_ROLES), async (req, res) => {
 });
 
 const emailField = z.string().trim().max(120).regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email is not valid');
+const ledgerRecipientsField = z.string().trim().max(2000);
+const normaliseLedgerRecipients = (value) => {
+  if (!value) return null;
+  const emails = [...new Set(value.split(/[;,\r\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean))];
+  if (emails.length > 30) throw badRequest('You can enter at most 30 ledger email addresses');
+  for (const email of emails) if (!emailField.safeParse(email).success) throw badRequest(`Email is not valid: ${email}`);
+  return emails.join('\n') || null;
+};
 const createSchema = z.object({
   username: z.string().trim().min(3).max(30).regex(/^[a-zA-Z0-9_.]+$/),
   password: z.string().min(6),
@@ -117,6 +125,7 @@ const createSchema = z.object({
   email: z.union([emailField, z.literal('')]).optional(),
   master_name: z.string().trim().max(80).optional(),
   logo: z.string().max(500_000).optional(),
+  ledger_recipients: ledgerRecipientsField.optional(),
   ledger_mail: z.boolean().optional(),
   prize_set_id: z.number().int().min(0).optional(),
   unlimited: z.boolean().optional(), // any account below the admin: bet / hand out money on credit
@@ -207,6 +216,7 @@ const updateSchema = z.object({
   email: z.union([emailField, z.literal('')]).nullable().optional(),
   master_name: z.string().trim().max(80).nullable().optional(),
   logo: z.string().max(500_000).nullable().optional(),
+  ledger_recipients: ledgerRecipientsField.nullable().optional(),
   ledger_mail: z.boolean().optional(),
   status: z.enum(['active', 'suspended', 'closed']).optional(),
   prize_set_id: z.number().int().min(0).optional(),
@@ -269,6 +279,13 @@ router.patch('/:id', requireRole(...UPLINE_ROLES), async (req, res) => {
   }
 
   if (body.email !== undefined) body.email = body.email || null;
+  if (body.ledger_recipients !== undefined) {
+    if (target.role !== 'master') throw badRequest('Ledger recipient emails are for master accounts');
+    if (req.user.role !== 'admin' && target.id !== req.user.id) {
+      throw forbidden('A master can only set their own ledger recipient emails');
+    }
+    body.ledger_recipients = normaliseLedgerRecipients(body.ledger_recipients);
+  }
   if (body.master_name !== undefined || body.logo !== undefined) {
     if (target.role !== 'master') throw badRequest('Logo and master name are for master accounts');
     if (body.master_name === '') body.master_name = null;
@@ -295,7 +312,7 @@ router.patch('/:id', requireRole(...UPLINE_ROLES), async (req, res) => {
 
   const sets = [];
   const args = [];
-  for (const key of ['name', 'name_mm', 'phone', 'phone2', 'address', 'email', 'master_name', 'logo', 'ledger_mail', 'status', 'prize_set_id', 'unlimited', 'ledger_access', 'sale_over', 'hot_edit', ...payKeys]) {
+  for (const key of ['name', 'name_mm', 'phone', 'phone2', 'address', 'email', 'master_name', 'logo', 'ledger_recipients', 'ledger_mail', 'status', 'prize_set_id', 'unlimited', 'ledger_access', 'sale_over', 'hot_edit', ...payKeys]) {
     if (body[key] !== undefined) { sets.push(`${key} = ?`); args.push(body[key]); }
   }
   if (body.password) { sets.push('password_hash = ?'); args.push(await bcrypt.hash(body.password, 10)); }

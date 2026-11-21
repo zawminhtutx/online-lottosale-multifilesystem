@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS users (
   email          TEXT,                                   -- master, agent, user
   master_name    TEXT,                                   -- master's book name
   logo           TEXT,                                   -- master's logo (data URL or http URL)
+  ledger_recipients TEXT,                                -- master: comma/newline separated close-time ledger recipients
   ledger_mail    INTEGER NOT NULL DEFAULT 0 CHECK (ledger_mail IN (0, 1)), -- agent / user: email the close-time ledger
   prize_set_id   INTEGER NOT NULL DEFAULT 0 REFERENCES prize_sets(id), -- PRIZESET
   balance        INTEGER NOT NULL DEFAULT 0,             -- may go negative only when unlimited = 1 (credit owed)

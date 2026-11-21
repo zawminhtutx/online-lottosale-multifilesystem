@@ -6,12 +6,12 @@ import { HttpError, forbidden, notFound } from './errors.js';
 // Own profile, GET /users/:id, and login: phone/address for the account, KPay/Wave only for
 // upline pay-in numbers. Never includes password_hash.
 export const PUBLIC_USER_COLUMNS =
-  'id, username, role, parent_id, name, name_mm, phone, phone2, address, email, master_name, logo, ledger_mail, prize_set_id, balance, unlimited, ledger_access, sale_over, hot_edit, kpay_no, kpay_name, wave_no, wave_name, status, last_login_at, created_at';
+  'id, username, role, parent_id, name, name_mm, phone, phone2, address, email, master_name, logo, ledger_recipients, ledger_mail, prize_set_id, balance, unlimited, ledger_access, sale_over, hot_edit, kpay_no, kpay_name, wave_no, wave_name, status, last_login_at, created_at';
 
 // Directory (GET /users): enough to search and work accounts. Address and payment numbers stay
 // on the detail page so a list cannot dump every customer's private contact / pay accounts.
 export const USER_LIST_COLUMNS =
-  'id, username, role, parent_id, name, name_mm, phone, email, master_name, logo, ledger_mail, prize_set_id, balance, unlimited, ledger_access, sale_over, hot_edit, status, last_login_at, created_at';
+  'id, username, role, parent_id, name, name_mm, phone, email, master_name, logo, ledger_recipients, ledger_mail, prize_set_id, balance, unlimited, ledger_access, sale_over, hot_edit, status, last_login_at, created_at';
 
 // Account levels, highest first: admin is the superadmin (one per system, no parent), then master,
 // agent and user. users.parent_id chains them, so each account has exactly one upline and its own
